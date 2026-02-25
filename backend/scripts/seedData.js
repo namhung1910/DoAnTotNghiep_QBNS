@@ -12,7 +12,7 @@ import Product from '../models/Product.js';
 import CropType from '../models/CropType.js';
 import Policy from '../models/Policy.js';
 
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/QuangBaNongSanDB';
+const MONGODB_URI = process.env.MONGODB_URI;
 
 const seedData = async () => {
   try {
