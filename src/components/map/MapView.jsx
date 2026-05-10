@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { MapContainer, TileLayer, GeoJSON, Popup, useMap, FeatureGroup } from 'react-leaflet';
+import { MapContainer, TileLayer, GeoJSON, Popup, useMap, FeatureGroup, Marker } from 'react-leaflet';
 import { EditControl } from 'react-leaflet-draw';
 import { regionAPI, farmAPI } from '../../services/api';
 import Loading from '../common/Loading';
@@ -23,12 +23,21 @@ L.Icon.Default.mergeOptions({
 const DEFAULT_CENTER = [20.45, 106.34];
 const DEFAULT_ZOOM = 12;
 
-// Style cho các vùng quy hoạch
+// Màu vùng quy hoạch theo loại zoneType — tông Pastel hài hòa
+const ZONE_COLORS = {
+  VLT: { fill: '#fef08a', border: '#ca8a04' },   // vàng lúa
+  VCN: { fill: '#fed7aa', border: '#c2410c' },   // cam đất
+  VAR: { fill: '#bbf7d0', border: '#16a34a' },   // xanh lá
+  default: { fill: '#bbf7d0', border: '#16a34a' },
+};
+
 const getRegionStyle = (feature) => {
+  const zoneType = feature?.properties?.zoneType || 'default';
+  const colors = ZONE_COLORS[zoneType] || ZONE_COLORS.default;
   return {
-    fillColor: '#22c55e',
-    fillOpacity: 0.2,
-    color: '#16a34a',
+    fillColor: colors.fill,
+    fillOpacity: 0.4,
+    color: colors.border,
     weight: 2,
     dashArray: '5, 5'
   };
@@ -41,17 +50,16 @@ const getOwnerName = (properties) => {
   return null;
 };
 
-// Style cho các thửa đất theo trạng thái
-const getFarmStyle = (feature) => {
-  const statusColors = {
-    planning: '#94a3b8',
-    planting: '#f59e0b',
-    growing: '#22c55e',
-    harvesting: '#ef4444',
-    harvested: '#8b5cf6',
-    fallow: '#64748b'
-  };
+// Màu trạng thái canh tác (dùng chung cho Polygon và CircleMarker Point)
+const STATUS_COLORS = {
+  planting: '#f59e0b',
+  growing: '#22c55e',
+  harvesting: '#ef4444',
+  harvested: '#8b5cf6',
+};
 
+// Style cho các thửa đất theo trạng thái (Polygon only)
+const getFarmStyle = (feature) => {
   const ownerName = getOwnerName(feature.properties);
 
   if (!ownerName) {
@@ -64,7 +72,7 @@ const getFarmStyle = (feature) => {
     };
   }
 
-  const color = statusColors[feature.properties?.status] || '#22c55e';
+  const color = STATUS_COLORS[feature.properties?.status] || '#22c55e';
 
   return {
     fillColor: color,
@@ -218,12 +226,10 @@ const MapView = ({
 
   const getStatusLabel = (status) => {
     const labels = {
-      planning: 'Đang quy hoạch',
       planting: 'Đang gieo trồng',
       growing: 'Đang phát triển',
       harvesting: 'Sắp thu hoạch',
       harvested: 'Đã thu hoạch',
-      fallow: 'Nghỉ canh tác'
     };
     return labels[status] || status;
   };
@@ -337,26 +343,90 @@ const MapView = ({
           </>
         )}
 
-        {/* Thửa đất */}
-        {showFarms && farmsGeoJSON && (
-          <GeoJSON
-            key="farms"
-            data={farmsGeoJSON}
-            style={getFarmStyle}
-            onEachFeature={onEachFarm}
-          />
-        )}
+        {/* Thửa đất — Polygon */}
+        {showFarms && farmsGeoJSON && (() => {
+          const polygonFeatures = (farmsGeoJSON.features || []).filter(
+            f => f.geometry?.type !== 'Point'
+          );
+          const pointFeatures = (farmsGeoJSON.features || []).filter(
+            f => f.geometry?.type === 'Point'
+          );
+          return (
+            <>
+              {polygonFeatures.length > 0 && (
+                <GeoJSON
+                  key="farms-polygon"
+                  data={{ type: 'FeatureCollection', features: polygonFeatures }}
+                  style={getFarmStyle}
+                  onEachFeature={onEachFarm}
+                />
+              )}
+              {pointFeatures.map((f, i) => {
+                const ownerName = getOwnerName(f.properties);
+                const color = ownerName
+                  ? (STATUS_COLORS[f.properties?.status] || '#22c55e')
+                  : '#9ca3af';
+                const [lng, lat] = f.geometry.coordinates;
+                const icon = new L.DivIcon({
+                  html: `<div style="display:flex;flex-direction:column;align-items:center;transform:translate(-50%,-100%)">
+                    <svg width="28" height="36" viewBox="0 0 32 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <ellipse cx="16" cy="38" rx="8" ry="3" fill="rgba(0,0,0,0.15)"/>
+                      <path d="M16 2C9.373 2 4 7.373 4 14c0 9.333 12 24 12 24S28 23.333 28 14C28 7.373 22.627 2 16 2z"
+                            fill="${color}" stroke="white" stroke-width="2"/>
+                      <circle cx="16" cy="14" r="5" fill="white"/>
+                    </svg>
+                  </div>`,
+                  iconSize: [28, 36],
+                  iconAnchor: [0, 0],
+                  className: ''
+                });
+                return (
+                  <Marker
+                    key={f.properties?._id || i}
+                    position={[lat, lng]}
+                    icon={icon}
+                    eventHandlers={{
+                      click: () => onFarmClick && onFarmClick(f),
+                    }}
+                  >
+                    <Popup>
+                      <div className="p-2">
+                        <h3 className="font-bold text-gray-900">{f.properties?.name || 'Thửa đất'}</h3>
+                        <p className="text-sm text-gray-600">Loại cây: {f.properties?.cropType || 'Chưa xác định'}</p>
+                        <p className="text-sm text-gray-600">Diện tích: {f.properties?.area?.toLocaleString() || 0} m²</p>
+                        <p className="text-sm text-gray-600">Chủ sở hữu: {ownerName || 'N/A'}</p>
+                        <span className="inline-block mt-2 px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                          {getStatusLabel(f.properties?.status)}
+                        </span>
+                      </div>
+                    </Popup>
+                  </Marker>
+                );
+              })}
+            </>
+          );
+        })()}
       </MapContainer>
 
       {/* Legend */}
-      <div className="absolute bottom-4 right-4 bg-white rounded-xl shadow-lg p-4 z-[1000]">
+      <div className="absolute bottom-4 right-4 bg-white rounded-xl shadow-lg p-4 z-10">
         <h4 className="font-semibold text-sm text-gray-900 mb-2">Chú thích</h4>
         <div className="space-y-1 text-xs">
           {showRegions && (
-            <div className="flex items-center space-x-2">
-              <div className="w-4 h-4 border-2 border-dashed border-green-600 bg-green-500/20 rounded" />
-              <span>Vùng quy hoạch</span>
-            </div>
+            <>
+              <div className="flex items-center space-x-2">
+                <div className="w-4 h-4 border-2 border-dashed rounded" style={{ background: '#fef08a', borderColor: '#ca8a04' }} />
+                <span>VLT — Cây lương thực</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-4 h-4 border-2 border-dashed rounded" style={{ background: '#fed7aa', borderColor: '#c2410c' }} />
+                <span>VCN — Cây công nghiệp</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-4 h-4 border-2 border-dashed rounded" style={{ background: '#bbf7d0', borderColor: '#16a34a' }} />
+                <span>VAR — Cây ăn quả &amp; rau màu</span>
+              </div>
+            </>
           )}
           {showFarms && (
             <>
@@ -366,10 +436,6 @@ const MapView = ({
                   <span>Đất chưa có người nhận</span>
                 </div>
               )}
-              <div className="flex items-center space-x-2">
-                <div className="w-4 h-4 bg-[#94a3b8] rounded" />
-                <span>Đang quy hoạch</span>
-              </div>
               <div className="flex items-center space-x-2">
                 <div className="w-4 h-4 bg-[#f59e0b] rounded" />
                 <span>Đang gieo trồng</span>
@@ -385,10 +451,6 @@ const MapView = ({
               <div className="flex items-center space-x-2">
                 <div className="w-4 h-4 bg-[#8b5cf6] rounded" />
                 <span>Đã thu hoạch</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <div className="w-4 h-4 bg-[#64748b] rounded" />
-                <span>Nghỉ canh tác</span>
               </div>
             </>
           )}

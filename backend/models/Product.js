@@ -21,7 +21,8 @@ const productSchema = new mongoose.Schema({
     default: 'Nông sản'
   },
   images: [{
-    type: String
+    url: { type: String, required: true },
+    public_id: { type: String, required: true }
   }],
   price: {
     type: Number,
@@ -30,10 +31,6 @@ const productSchema = new mongoose.Schema({
   unit: {
     type: String,
     default: 'kg'
-  },
-  quantity: {
-    type: Number,
-    default: 0
   },
   description: {
     type: String,
@@ -70,10 +67,16 @@ const productSchema = new mongoose.Schema({
   contactCount: {
     type: Number,
     default: 0
+  },
+  // Số lượng đã bán thật (field chuẩn bị cho hệ thống đơn hàng tương lai)
+  soldQuantity: {
+    type: Number,
+    default: 0
   }
 }, {
   timestamps: true
 });
+
 
 const Product = mongoose.model('Product', productSchema);
 export default Product;

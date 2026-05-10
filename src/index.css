@@ -1,7 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600;700&display=swap');
 
-/* Leaflet CSS */
-@import 'leaflet/dist/leaflet.css';
+
+
 
 @tailwind base;
 @tailwind components;
@@ -13,7 +13,7 @@
   html {
     scroll-behavior: smooth;
   }
-  
+
   body {
     @apply font-sans antialiased bg-earth-50 text-gray-800;
   }
@@ -21,66 +21,53 @@
 
 @layer components {
   .btn-primary {
-    @apply px-6 py-3 bg-primary-600 text-white font-semibold rounded-xl 
-           hover:bg-primary-700 transition-all duration-300 
-           shadow-lg hover:shadow-xl hover:-translate-y-0.5
-           focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2;
+    @apply px-6 py-3 bg-primary-600 text-white font-semibold rounded-xl hover:bg-primary-700 transition-all duration-300 shadow-lg hover:shadow-xl hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2;
   }
-  
+
   .btn-secondary {
-    @apply px-6 py-3 bg-earth-100 text-earth-800 font-semibold rounded-xl 
-           hover:bg-earth-200 transition-all duration-300 
-           border border-earth-300
-           focus:outline-none focus:ring-2 focus:ring-earth-400 focus:ring-offset-2;
+    @apply px-6 py-3 bg-earth-100 text-earth-800 font-semibold rounded-xl hover:bg-earth-200 transition-all duration-300 border border-earth-300 focus:outline-none focus:ring-2 focus:ring-earth-400 focus:ring-offset-2;
   }
-  
+
   .btn-outline {
-    @apply px-6 py-3 bg-transparent border-2 border-primary-600 text-primary-600 
-           font-semibold rounded-xl hover:bg-primary-600 hover:text-white 
-           transition-all duration-300;
+    @apply px-6 py-3 bg-transparent border-2 border-primary-600 text-primary-600 font-semibold rounded-xl hover:bg-primary-600 hover:text-white transition-all duration-300;
   }
-  
+
   .input-field {
-    @apply w-full px-4 py-3 border border-gray-300 rounded-xl 
-           focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent
-           bg-white transition-all duration-200
-           placeholder:text-gray-400;
+    @apply w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white transition-all duration-200 placeholder:text-gray-400;
   }
-  
+
   .card {
-    @apply bg-white rounded-2xl shadow-lg p-6 
-           border border-gray-100 
-           hover:shadow-xl transition-all duration-300;
+    @apply bg-white rounded-2xl shadow-lg p-6 border border-gray-100 hover:shadow-xl transition-all duration-300;
   }
-  
+
   .card-hover {
     @apply card hover:-translate-y-1 cursor-pointer;
   }
-  
+
   .badge {
     @apply inline-flex items-center px-3 py-1 rounded-full text-sm font-medium;
   }
-  
+
   .badge-success {
     @apply badge bg-green-100 text-green-800;
   }
-  
+
   .badge-warning {
     @apply badge bg-yellow-100 text-yellow-800;
   }
-  
+
   .badge-info {
     @apply badge bg-blue-100 text-blue-800;
   }
-  
+
   .badge-error {
     @apply badge bg-red-100 text-red-800;
   }
-  
+
   .section-title {
     @apply font-display text-3xl md:text-4xl font-bold text-gray-900 mb-4;
   }
-  
+
   .section-subtitle {
     @apply text-lg text-gray-600 max-w-2xl;
   }
@@ -90,23 +77,160 @@
   .text-gradient {
     @apply bg-clip-text text-transparent bg-gradient-to-r from-primary-600 to-harvest-500;
   }
-  
+
   .bg-mesh {
-    background-image: 
+    background-image:
       radial-gradient(at 40% 20%, rgba(34, 197, 94, 0.1) 0px, transparent 50%),
       radial-gradient(at 80% 0%, rgba(245, 158, 11, 0.1) 0px, transparent 50%),
       radial-gradient(at 0% 50%, rgba(34, 197, 94, 0.1) 0px, transparent 50%),
       radial-gradient(at 80% 50%, rgba(139, 92, 246, 0.05) 0px, transparent 50%),
       radial-gradient(at 0% 100%, rgba(245, 158, 11, 0.1) 0px, transparent 50%);
   }
-  
+
   .scrollbar-hide {
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
-  
+
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
+  }
+
+  .mesh-gradient-sophisticated {
+    background-color: #ffffff;
+    overflow: hidden;
+  }
+
+  .mesh-gradient-sophisticated::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    z-index: -1;
+    pointer-events: none;
+    background-image:
+      radial-gradient(circle at 15% 15%, rgba(56, 189, 248, 0.4) 0%, transparent 45%),
+      radial-gradient(circle at 85% 15%, rgba(34, 197, 94, 0.35) 0%, transparent 45%),
+      radial-gradient(circle at 50% 50%, rgba(251, 191, 36, 0.3) 0%, transparent 45%),
+      radial-gradient(circle at 20% 80%, rgba(139, 92, 246, 0.35) 0%, transparent 45%),
+      radial-gradient(circle at 80% 80%, rgba(56, 189, 248, 0.3) 0%, transparent 45%);
+    filter: blur(70px);
+    animation: mesh-rotate 40s linear infinite;
+  }
+
+  @keyframes mesh-rotate {
+    0% {
+      transform: rotate(0deg);
+    }
+
+    100% {
+      transform: rotate(360deg);
+    }
+  }
+
+  .dynamic-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+    transition: scrollbar-color 0.3s;
+  }
+
+  .dynamic-scrollbar:hover,
+  .dynamic-scrollbar:active,
+  .dynamic-scrollbar:focus {
+    scrollbar-color: rgba(34, 197, 94, 0.3) transparent;
+  }
+
+  .dynamic-scrollbar::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .dynamic-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .dynamic-scrollbar::-webkit-scrollbar-thumb {
+    background-color: transparent;
+    border-radius: 20px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+    transition: background-color 0.3s;
+  }
+
+  .dynamic-scrollbar:hover::-webkit-scrollbar-thumb,
+  .dynamic-scrollbar:active::-webkit-scrollbar-thumb {
+    background-color: rgba(34, 197, 94, 0.4);
+  }
+
+  /* Aurora Container tinh chỉnh */
+  .aurora-container {
+    @apply relative overflow-hidden transition-all duration-1000;
+  }
+
+  .aurora-blur-wrapper {
+    @apply absolute inset-0 pointer-events-none;
+    filter: blur(60px);
+    /* Tăng blur một chút để màu hòa vào nhau tự nhiên hơn */
+    z-index: 0;
+  }
+
+  /* Tạo 3 khối cầu màu riêng biệt để chúng không bị dính chùm */
+  .aurora-ball {
+    @apply absolute rounded-full opacity-60 mix-blend-hard-light animate-aurora-varied;
+    filter: saturate(1.5);
+    /* Tăng độ tươi của màu */
+    transition: background-color 1s ease-in-out;
+  }
+
+  .ball-1 {
+    width: 80%;
+    height: 80%;
+    top: -10%;
+    left: -10%;
+    animation-delay: 0s;
+  }
+
+  .ball-2 {
+    width: 70%;
+    height: 70%;
+    bottom: -10%;
+    right: -10%;
+    animation-delay: -5s;
+  }
+
+  .ball-3 {
+    width: 60%;
+    height: 60%;
+    top: 20%;
+    left: 30%;
+    animation-delay: -10s;
+  }
+
+  @keyframes aurora-varied {
+
+    0%,
+    100% {
+      transform: translate(0, 0) scale(1) rotate(0deg);
+    }
+
+    33% {
+      transform: translate(10%, 15%) scale(1.1) rotate(120deg);
+    }
+
+    66% {
+      transform: translate(-5%, 20%) scale(0.9) rotate(240deg);
+    }
+  }
+
+  .animate-aurora-varied {
+    animation: aurora-varied 20s ease-in-out infinite;
+  }
+
+  .bento-card {
+    /* Loại bỏ bg-black/10 cũ, dùng màu trắng cực mỏng để lấy độ trong suốt */
+    @apply relative overflow-hidden rounded-2xl bg-black/10 transition-all duration-300;
+    z-index: 10;
   }
 }
 
@@ -130,22 +254,75 @@
 
 /* Animation Classes */
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes circularReveal {
+  from {
+    opacity: 0;
+    clip-path: circle(0% at 92% 92%);
+  }
+
+  to {
+    opacity: 1;
+    clip-path: circle(150% at 92% 92%);
+  }
+}
+
+@keyframes circularRevealClose {
+  from {
+    opacity: 1;
+    clip-path: circle(150% at 92% 92%);
+  }
+
+  to {
+    opacity: 0;
+    clip-path: circle(0% at 92% 92%);
+  }
 }
 
 @keyframes slideIn {
-  from { opacity: 0; transform: translateX(-20px); }
-  to { opacity: 1; transform: translateX(0); }
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 @keyframes pulse-slow {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.5;
+  }
 }
 
 .animate-fadeIn {
   animation: fadeIn 0.5s ease-out forwards;
+}
+
+.animate-circularReveal {
+  animation: circularReveal 0.7s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.animate-circularRevealClose {
+  animation: circularRevealClose 0.7s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
 
 .animate-slideIn {
@@ -157,14 +334,31 @@
 }
 
 /* Stagger animation for children */
-.stagger-children > * {
+.stagger-children>* {
   animation: fadeIn 0.5s ease-out forwards;
   opacity: 0;
 }
 
-.stagger-children > *:nth-child(1) { animation-delay: 0.1s; }
-.stagger-children > *:nth-child(2) { animation-delay: 0.2s; }
-.stagger-children > *:nth-child(3) { animation-delay: 0.3s; }
-.stagger-children > *:nth-child(4) { animation-delay: 0.4s; }
-.stagger-children > *:nth-child(5) { animation-delay: 0.5s; }
-.stagger-children > *:nth-child(6) { animation-delay: 0.6s; }
+.stagger-children>*:nth-child(1) {
+  animation-delay: 0.1s;
+}
+
+.stagger-children>*:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.stagger-children>*:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+.stagger-children>*:nth-child(4) {
+  animation-delay: 0.4s;
+}
+
+.stagger-children>*:nth-child(5) {
+  animation-delay: 0.5s;
+}
+
+.stagger-children>*:nth-child(6) {
+  animation-delay: 0.6s;
+}

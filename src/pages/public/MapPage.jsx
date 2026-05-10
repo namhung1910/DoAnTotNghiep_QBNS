@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { FiInfo, FiLayers, FiMapPin } from 'react-icons/fi';
 import MapView from '../../components/map/MapView';
-import ChatBot from '../../components/chat/ChatBot';
+
 import Modal from '../../components/common/Modal';
 
 const MapPage = () => {
@@ -159,7 +159,7 @@ const MapPage = () => {
       <Modal
         isOpen={showModal}
         onClose={() => setShowModal(false)}
-        title={selectedFeature?.type === 'region' ? 'Thông tin vùng quy hoạch' : 'Thông tin thửa đất'}
+        title={selectedFeature?.type === 'region' ? 'Chi tiết vùng quy hoạch' : 'Thông tin thửa đất'}
         size="md"
       >
         {selectedFeature && (
@@ -177,13 +177,34 @@ const MapPage = () => {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="text-sm text-gray-500">Loại thổ nhưỡng</label>
-                    <p className="text-gray-700">{selectedFeature.data.soilType || 'Phù sa'}</p>
+                    <p className="text-gray-700">{selectedFeature.data.soilType || 'Đất phù sa'}</p>
                   </div>
                   <div>
                     <label className="text-sm text-gray-500">Tổng diện tích</label>
-                    <p className="text-gray-700">{selectedFeature.data.totalArea?.toLocaleString() || 0} m²</p>
+                    <p className="text-gray-700">
+                      {selectedFeature.data.totalArea
+                        ? selectedFeature.data.totalArea >= 10000
+                          ? `${(selectedFeature.data.totalArea / 10000).toFixed(2)} ha`
+                          : `${selectedFeature.data.totalArea.toLocaleString()} m²`
+                        : 'Chưa xác định'}
+                    </p>
                   </div>
                 </div>
+                {selectedFeature.data.zoneCode && (
+                  <div>
+                    <label className="text-sm text-gray-500">Phân loại vùng</label>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="font-mono text-xs font-bold bg-blue-100 text-blue-700 px-2 py-1 rounded">
+                        {selectedFeature.data.zoneCode}
+                      </span>
+                      <span className="text-sm text-gray-600">
+                        {selectedFeature.data.zoneType === 'VLT' && '(Vùng cây lương thực)'}
+                        {selectedFeature.data.zoneType === 'VCN' && '(Vùng cây công nghiệp)'}
+                        {selectedFeature.data.zoneType === 'VAR' && '(Vùng cây ăn quả & rau màu)'}
+                      </span>
+                    </div>
+                  </div>
+                )}
                 {selectedFeature.data.plannedCrops?.length > 0 && (
                   <div>
                     <label className="text-sm text-gray-500">Cây trồng được hoạch định</label>
@@ -235,7 +256,7 @@ const MapPage = () => {
       </Modal>
 
       {/* Chatbot */}
-      <ChatBot chatType="public" />
+      
     </div>
   );
 };

@@ -4,6 +4,7 @@ import { complaintAPI } from '../../services/api';
 import Loading from '../../components/common/Loading';
 import Modal from '../../components/common/Modal';
 import toast from 'react-hot-toast';
+import Button from '../../components/common/Button';
 
 const AdminComplaintsPage = () => {
     const [complaints, setComplaints] = useState([]);
@@ -73,10 +74,10 @@ const AdminComplaintsPage = () => {
                                 <div>
                                     <div className="flex items-center gap-2 mb-1">
                                         <span className={`badge ${c.status === 'pending' ? 'badge-warning' :
-                                                c.status === 'resolved' ? 'badge-success' : 'badge-error'
+                                            c.status === 'resolved' ? 'badge-success' : 'badge-error'
                                             }`}>
                                             {c.status === 'pending' ? 'Chờ xử lý' :
-                                                c.status === 'resolved' ? 'Đã giải quyết' : 'Đã từ chối'}
+                                                c.status === 'resolved' ? 'Đã giải quyết & Khôi phục' : 'Đã từ chối'}
                                         </span>
                                         <span className="text-sm text-gray-500 flex items-center">
                                             <FiClock className="mr-1" />
@@ -123,20 +124,23 @@ const AdminComplaintsPage = () => {
                                     placeholder="Nhập nội dung phản hồi..."
                                 />
                                 <div className="flex justify-end space-x-3 mt-4">
-                                    <button
+                                    <Button
                                         onClick={() => handleResolve('rejected')}
-                                        disabled={processing}
-                                        className="btn bg-red-100 text-red-700 hover:bg-red-200"
+                                        loading={processing}
+                                        variant="secondary"
+                                        icon={FiX}
+                                        className="!bg-red-100 !text-red-700 hover:!bg-red-200"
                                     >
-                                        <FiX className="mr-2" /> Từ chối
-                                    </button>
-                                    <button
+                                        Từ chối
+                                    </Button>
+                                    <Button
                                         onClick={() => handleResolve('resolved')}
-                                        disabled={processing}
-                                        className="btn-primary"
+                                        loading={processing}
+                                        variant="primary"
+                                        icon={FiCheck}
                                     >
-                                        <FiCheck className="mr-2" /> Giải quyết
-                                    </button>
+                                        Đồng ý & Khôi phục thửa đất
+                                    </Button>
                                 </div>
                             </div>
                         ) : (

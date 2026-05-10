@@ -6,6 +6,8 @@ import area from '@turf/area'; // Import area calculation
 import { booleanOverlap, booleanIntersects, booleanWithin } from '@turf/turf'; // Import validation functions
 import Loading from '../../components/common/Loading';
 import Modal from '../../components/common/Modal';
+import Button from '../../components/common/Button';
+import DeletedRegionsModal from '../../components/admin/DeletedRegionsModal';
 import MapView from '../../components/map/MapView';
 import toast from 'react-hot-toast';
 
@@ -21,6 +23,7 @@ const RegionsManagePage = () => {
   const [selectedFarm, setSelectedFarm] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [revoking, setRevoking] = useState(false);
+  const [showDeletedModal, setShowDeletedModal] = useState(false);
 
   // Assign Mode State
   const [assignMode, setAssignMode] = useState(false);
@@ -29,15 +32,25 @@ const RegionsManagePage = () => {
   const [createRegionModal, setCreateRegionModal] = useState(false);
   const [drawingMode, setDrawingMode] = useState(null); // 'region' | 'farm' | null
 
+  // Universal Modal State (for confirmations/prompts)
+  const [activeModal, setActiveModal] = useState({ type: null, data: null, extra: '' });
+
   // Pending forms state (to save data when switching to draw mode)
   const [pendingRegionForm, setPendingRegionForm] = useState({
     name: '',
     description: '',
+    zoneType: '',
+    zoneCode: '',
     soilType: '',
     totalArea: '',
-    plannedCrops: '',
     coordinates: ''
   });
+
+  // Rename Region Modal
+  const [showRenameModal, setShowRenameModal] = useState(false);
+  const [renamingRegion, setRenamingRegion] = useState(null);
+  const [renameValue, setRenameValue] = useState('');
+  const [savingRename, setSavingRename] = useState(false);
 
   // Assign/Create Farm Form
   const [assignForm, setAssignForm] = useState({
@@ -96,11 +109,39 @@ const RegionsManagePage = () => {
       setPendingRegionForm({
         name: '',
         description: '',
+        zoneType: '',
+        zoneCode: '',
         soilType: '',
         totalArea: '',
-        plannedCrops: '',
         coordinates: ''
       });
+    }
+  };
+
+  // Kự năng: xếm trước mã vùng khi chọn loại phân vùng
+  const handleZoneTypeChange = async (zoneType) => {
+    setPendingRegionForm(prev => ({ ...prev, zoneType, zoneCode: '' }));
+    if (!zoneType) return;
+    try {
+      const res = await regionAPI.getNextZoneCode(zoneType);
+      setPendingRegionForm(prev => ({ ...prev, zoneCode: res.data.zoneCode }));
+    } catch (e) { /* ignore */ }
+  };
+
+  // Xử lý đổi tên vùng
+  const handleRenameRegion = async (e) => {
+    e.preventDefault();
+    if (!renameValue.trim()) return;
+    try {
+      setSavingRename(true);
+      await regionAPI.rename(renamingRegion._id, renameValue.trim());
+      toast.success('Dổi tên thành công!');
+      setShowRenameModal(false);
+      fetchData();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Không thể đổi tên');
+    } finally {
+      setSavingRename(false);
     }
   };
 
@@ -125,9 +166,9 @@ const RegionsManagePage = () => {
       await regionAPI.create({
         name: pendingRegionForm.name,
         description: pendingRegionForm.description,
+        zoneType: pendingRegionForm.zoneType,
         soilType: pendingRegionForm.soilType,
         totalArea: parseFloat(pendingRegionForm.totalArea),
-        plannedCrops: pendingRegionForm.plannedCrops.split(',').map(c => c.trim()),
         geometry: geometry
       });
 
@@ -164,12 +205,17 @@ const RegionsManagePage = () => {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!confirm('Bạn có chắc muốn xóa vùng quy hoạch này?')) return;
+  const handleDelete = (id) => {
+    setActiveModal({ type: 'deleteRegion', data: id });
+  };
 
+  const confirmDeleteRegion = async () => {
+    const id = activeModal.data;
+    if (!id) return;
     try {
       await regionAPI.delete(id);
       toast.success('Đã xóa vùng quy hoạch');
+      setActiveModal({ type: null, data: null, extra: '' });
       fetchData();
     } catch (error) {
       console.error('Error deleting region:', error);
@@ -177,15 +223,25 @@ const RegionsManagePage = () => {
     }
   };
 
-  const handleRevoke = async () => {
+  const handleRevoke = () => {
     if (!selectedFarm || !selectedFarm.id) return;
-    const reason = prompt('Nhập lý do thu hồi đất:');
-    if (reason === null) return; // Cancelled
+    setActiveModal({ type: 'revokeFarm', data: selectedFarm.id, extra: '' });
+  };
+
+  const confirmRevokeFarm = async (e) => {
+    e.preventDefault();
+    const reason = activeModal.extra;
+    const farmId = activeModal.data;
+    if (!reason.trim()) {
+      toast.error('Vui lòng nhập lý do thu hồi');
+      return;
+    }
 
     try {
       setRevoking(true);
-      await farmAPI.revoke(selectedFarm.id, { reason });
+      await farmAPI.revoke(farmId, { reason });
       toast.success('Đã thu hồi thửa đất');
+      setActiveModal({ type: null, data: null, extra: '' });
       setSelectedFarm(null);
       fetchData();
     } catch (error) {
@@ -201,7 +257,7 @@ const RegionsManagePage = () => {
     setAssignMode(false); // Creating unassigned plot
     setAssignRequest(null);
     setAssignForm({
-      name: '',
+      // name đã bỏ — backend tự sinh tên từ farmerCode + zoneCode
       cropType: '',
       area: '',
       coordinates: '',
@@ -209,29 +265,32 @@ const RegionsManagePage = () => {
     });
   };
 
-  const handleAssignExistingFarm = async (farm) => {
+  const handleAssignExistingFarm = (farm) => {
+    setActiveModal({ type: 'assignFarm', data: farm });
+  };
+
+  const confirmAssignFarm = async () => {
+    const farm = activeModal.data;
+    if (!farm) return;
     const farmId = farm._id || farm.id;
-    console.log('handleAssignExistingFarm called with:', farm);
-    if (!confirm(`Bạn có chắc muốn giao thửa đất "${farm.name}" cho nông dân ${assignRequest.user.fullName}?`)) return;
 
     try {
       setAssigning(true);
       // Update Farm owner
-      console.log('Assigning farm:', farmId, 'to user:', assignRequest.user._id);
       await farmAPI.update(farmId, {
         ownerId: assignRequest.user._id,
-        status: 'planning', // Reset status for new owner
+        status: 'planting', // Reset status for new owner
         notes: `Giao đất ngày ${new Date().toLocaleDateString()}`
       });
 
       // Update Request
-      console.log('Updating request:', assignRequest.id);
       await landRequestAPI.updateStatus(assignRequest.id, {
         status: 'approved',
         assignedFarm: farmId
       });
 
       toast.success('Giao đất thành công!');
+      setActiveModal({ type: null, data: null, extra: '' });
       setAssignMode(false);
       setAssignRequest(null);
       setSelectedFarm(null); // Close modal
@@ -265,15 +324,15 @@ const RegionsManagePage = () => {
         return;
       }
 
-      // 1. Create Farm
+      // 1. Create Farm — không gửi name, backend tự sinh
       const farmRes = await farmAPI.create({
-        name: assignForm.name,
         cropType: assignForm.cropType,
         area: parseFloat(assignForm.area),
         geometry: geometry,
         regionId: assignForm.regionId || undefined,
-        ownerId: assignRequest?.user?._id || undefined, // undefined means unassigned
+        ownerId: assignRequest?.user?._id || undefined,
         status: 'planning'
+        // name bỏ — backend tự tra farmerCode (từ ownerId) + zoneCode (từ regionId)
       });
 
       // 2. If Assign Mode, Update Request Status
@@ -372,23 +431,23 @@ const RegionsManagePage = () => {
 
       // Farm Mode - VALIDATION 2: Farm must NOT overlap existing farms
       for (const existingFarm of farms) {
-        if (existingFarm.geometry) {
-          const existingPolygon = {
-            type: 'Feature',
-            geometry: existingFarm.geometry
-          };
+        // Guard: skip Point-geometry farms (marker-based) — turf booleanOverlap requires Polygon
+        if (!existingFarm.geometry || existingFarm.geometry.type === 'Point') continue;
+        const existingPolygon = {
+          type: 'Feature',
+          geometry: existingFarm.geometry
+        };
 
-          try {
-            if (booleanOverlap(geoJSON, existingPolygon) ||
-              booleanIntersects(geoJSON, existingPolygon)) {
-              toast.error(`Thửa đất mới không được chồng lên thửa đất "${existingFarm.name}"!`);
-              e.layer.remove();
-              setDrawingMode(null);
-              return;
-            }
-          } catch (err) {
-            console.error('Error checking farm overlap:', err);
+        try {
+          if (booleanOverlap(geoJSON, existingPolygon) ||
+            booleanIntersects(geoJSON, existingPolygon)) {
+            toast.error(`Thửa đất mới không được chồng lên thửa đất "${existingFarm.name}"!`);
+            e.layer.remove();
+            setDrawingMode(null);
+            return;
           }
+        } catch (err) {
+          console.error('Error checking farm overlap:', err);
         }
       }
 
@@ -433,8 +492,28 @@ const RegionsManagePage = () => {
     return <Loading fullScreen={false} message="Đang tải dữ liệu..." />;
   }
 
+  // Admin xóa thửa đất bất kỳ (soft delete)
+  const handleAdminDeleteFarm = (farm) => {
+    setActiveModal({ type: 'deleteFarm', data: farm });
+  };
+
+  const confirmAdminDeleteFarm = async () => {
+    const farm = activeModal.data;
+    if (!farm) return;
+    try {
+      await farmAPI.delete(farm._id);
+      toast.success('Đã xóa thửa đất');
+      setActiveModal({ type: null, data: null, extra: '' });
+      fetchData();
+    } catch (error) {
+      console.error('Error deleting farm:', error);
+      toast.error(error.response?.data?.message || 'Không thể xóa thửa đất');
+    }
+  };
+
   // Helper to get owner name safely (mirrors MapView logic)
   const getOwnerName = (properties) => {
+
     if (properties?.ownerName) return properties.ownerName;
     if (properties?.ownerId?.fullName) return properties.ownerId.fullName;
     // Check if ownerId is a populated object with fullName
@@ -452,46 +531,25 @@ const RegionsManagePage = () => {
           <p className="text-gray-600">Quản lý vùng quy hoạch và thửa đất nông nghiệp</p>
         </div>
         <div className="flex space-x-3">
-          <button
+          <Button
+            variant="outline-danger"
+            icon={FiTrash2}
+            onClick={() => setShowDeletedModal(true)}
+            title="Xem các vùng quy hoạch đã xóa"
+          >
+            <span className="hidden sm:inline">Thùng rác</span>
+          </Button>
+          <Button
+            variant="primary"
+            icon={FiPlus}
             onClick={handleOpenCreateRegion}
-            className="btn-secondary flex items-center space-x-2"
           >
-            <FiMap />
-            <span>Tạo vùng quy hoạch</span>
-          </button>
-          <button
-            onClick={handleCreatePlot}
-            className="btn-primary flex items-center space-x-2 bg-green-600 hover:bg-green-700"
-          >
-            <FiPlus />
-            <span>Tạo thửa đất</span>
-          </button>
+            Tạo vùng quy hoạch
+          </Button>
         </div>
       </div>
 
-      {assignMode && (
-        <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6 flex justify-between items-center">
-          <div>
-            <p className="font-bold text-blue-700">Đang thực hiện giao đất</p>
-            <p className="text-sm text-blue-600">
-              Người nhận: {assignRequest?.user?.fullName} ({assignRequest?.user?.username})
-            </p>
-            <p className="text-xs text-blue-500 mt-1 italic">
-              * Vẽ một thửa đất mới trên bản đồ hoặc chọn thửa đất trống để giao.
-            </p>
-          </div>
-          <button
-            onClick={() => {
-              setAssignMode(false);
-              setAssignRequest(null);
-              setShowAssignModal(false);
-            }}
-            className="text-sm text-blue-500 hover:text-blue-700 underline"
-          >
-            Hủy bỏ
-          </button>
-        </div>
-      )}
+
       {/* Drawing Mode Banner */}
       {!!drawingMode && (
         <div className="bg-yellow-50 border-l-4 border-yellow-500 p-4 mb-6 flex justify-between items-center animate-pulse">
@@ -549,85 +607,179 @@ const RegionsManagePage = () => {
         </div>
       </div>
 
-      {/* Regions List */}
-      <div className="card">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Danh sách vùng quy hoạch</h2>
+      {/* Bottom: 50/50 grid — Regions list | Farms list */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-        {regions.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Tên vùng</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Loại thổ nhưỡng</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Diện tích</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Cây trồng</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Hành động</th>
-                </tr>
-              </thead>
-              <tbody>
-                {regions.map((region) => (
-                  <tr key={region._id} className="border-t border-gray-100 hover:bg-gray-50">
-                    <td className="py-3 px-4">
-                      <div>
-                        <p className="font-medium text-gray-900">{region.name}</p>
-                        <p className="text-sm text-gray-500">{region.description}</p>
-                      </div>
-                    </td>
-                    <td className="py-3 px-4 text-gray-600">{region.soilType}</td>
-                    <td className="py-3 px-4 text-gray-600">
-                      {(region.totalArea / 10000).toFixed(2)} ha
-                    </td>
-                    <td className="py-3 px-4">
-                      <div className="flex flex-wrap gap-1">
-                        {region.plannedCrops?.slice(0, 3).map((crop, idx) => (
-                          <span key={idx} className="badge-info text-xs">{crop}</span>
-                        ))}
-                        {region.plannedCoughs?.length > 3 && (
-                          <span className="text-xs text-gray-400">+{region.plannedCrops.length - 3}</span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="py-3 px-4">
-                      <div className="flex items-center space-x-2">
-                        <button
-                          onClick={() => setSelectedRegion(region)}
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
-                          title="Xem chi tiết"
-                        >
-                          <FiEye />
-                        </button>
-                        <button
-                          className="p-2 text-yellow-600 hover:bg-yellow-50 rounded-lg"
-                          title="Sửa"
-                        >
-                          <FiEdit2 />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(region._id)}
-                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
-                          title="Xóa"
-                        >
-                          <FiTrash2 />
-                        </button>
-                      </div>
-                    </td>
+        {/* ── Regions List ── */}
+        <div className="card overflow-hidden">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Danh sách vùng quy hoạch</h2>
+
+          {regions.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="text-left py-3 px-3 text-xs font-medium text-gray-500">Tên vùng</th>
+                    <th className="text-left py-3 px-3 text-xs font-medium text-gray-500">Thổ nhưỡng</th>
+                    <th className="text-left py-3 px-3 text-xs font-medium text-gray-500">Diện tích</th>
+                    <th className="text-left py-3 px-3 text-xs font-medium text-gray-500">Hành động</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <div className="text-center py-12">
-            <FiMap className="mx-auto text-5xl text-gray-300 mb-4" />
-            <h3 className="text-xl font-semibold text-gray-700 mb-2">Chưa có vùng quy hoạch</h3>
-            <p className="text-gray-500 mb-6">Bắt đầu bằng cách upload file GeoJSON hoặc vẽ trực tiếp</p>
-            <button onClick={() => setShowUploadModal(true)} className="btn-primary">
-              <FiUpload className="mr-2" />
-              Upload GeoJSON
-            </button>
-          </div>
-        )}
+                </thead>
+                <tbody>
+                  {regions.map((region) => (
+                    <tr key={region._id} className="border-t border-gray-100 hover:bg-gray-50">
+                      <td className="py-3 px-3">
+                        <p className="font-medium text-gray-900 text-sm">{region.name}</p>
+                        {region.zoneCode && (
+                          <span className="text-xs bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded font-mono">{region.zoneCode}</span>
+                        )}
+                      </td>
+                      <td className="py-3 px-3 text-gray-600 text-sm">{region.soilType}</td>
+                      <td className="py-3 px-3 text-gray-600 text-sm">
+                        {(region.totalArea / 10000).toFixed(2)} ha
+                      </td>
+                      <td className="py-3 px-3">
+                        <div className="flex items-center space-x-1">
+                          <button
+                            onClick={() => setSelectedRegion(region)}
+                            className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg"
+                            title="Xem chi tiết"
+                          >
+                            <FiEye size={14} />
+                          </button>
+                          <button
+                            onClick={() => {
+                              setRenamingRegion(region);
+                              setRenameValue(region.name);
+                              setShowRenameModal(true);
+                            }}
+                            className="p-1.5 text-yellow-600 hover:bg-yellow-50 rounded-lg"
+                            title="Đổi tên"
+                          >
+                            <FiEdit2 size={14} />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(region._id)}
+                            className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg"
+                            title="Xóa"
+                          >
+                            <FiTrash2 size={14} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="text-center py-10">
+              <FiMap className="mx-auto text-4xl text-gray-300 mb-3" />
+              <p className="text-gray-500 text-sm">Chưa có vùng quy hoạch</p>
+              <button onClick={() => setShowUploadModal(true)} className="btn-primary mt-3 text-sm">
+                <FiUpload className="mr-1 inline" />Upload GeoJSON
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* ── Farms List ── */}
+        <div className="card overflow-hidden">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">
+            Danh sách thửa đất
+            <span className="ml-2 text-sm font-normal text-gray-400">({farms.filter(f => f.isActive !== false).length} thửa)</span>
+          </h2>
+
+          {farms.filter(f => f.isActive !== false).length > 0 ? (
+            <div className="overflow-y-auto max-h-80">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 sticky top-0">
+                  <tr>
+                    <th className="text-left py-3 px-3 text-xs font-medium text-gray-500">Tên thửa đất</th>
+                    <th className="text-left py-3 px-3 text-xs font-medium text-gray-500">Chủ sở hữu</th>
+                    <th className="text-left py-3 px-3 text-xs font-medium text-gray-500">Diện tích</th>
+                    <th className="text-left py-3 px-3 text-xs font-medium text-gray-500">Trạng thái</th>
+                    <th className="text-left py-3 px-3 text-xs font-medium text-gray-500">Duyệt</th>
+                    <th className="text-left py-3 px-3 text-xs font-medium text-gray-500">Hành động</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {farms.filter(f => f.isActive !== false).map((farm) => {
+                    const statusColors = {
+                      planning: 'bg-gray-100 text-gray-700',
+                      planting: 'bg-yellow-100 text-yellow-700',
+                      growing: 'bg-green-100 text-green-700',
+                      harvesting: 'bg-orange-100 text-orange-700',
+                      harvested: 'bg-purple-100 text-purple-700',
+                      fallow: 'bg-gray-100 text-gray-500',
+                    };
+                    const statusLabels = {
+                      planning: 'Quy hoạch',
+                      planting: 'Gieo trồng',
+                      growing: 'Phát triển',
+                      harvesting: 'Sắp thu',
+                      harvested: 'Đã thu',
+                      fallow: 'Nghỉ',
+                    };
+                    const approvalColor = farm.approvalStatus === 'pending'
+                      ? 'bg-yellow-100 text-yellow-700'
+                      : 'bg-green-100 text-green-700';
+                    const approvalLabel = farm.approvalStatus === 'pending' ? 'Chờ' : 'OK';
+
+                    return (
+                      <tr key={farm._id} className="border-t border-gray-100 hover:bg-gray-50">
+                        <td className="py-3 px-3">
+                          <p className="font-medium text-gray-900 text-sm">{farm.name || 'Thửa đất'}</p>
+                          <p className="text-xs text-gray-400">{farm.cropType}</p>
+                        </td>
+                        <td className="py-3 px-3 text-gray-600 text-sm">
+                          {farm.ownerId?.fullName || <span className="italic text-gray-400">Trống</span>}
+                        </td>
+                        <td className="py-3 px-3 text-gray-600 text-sm">
+                          {farm.area?.toLocaleString()} m²
+                        </td>
+                        <td className="py-3 px-3">
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusColors[farm.status] || 'bg-gray-100 text-gray-700'}`}>
+                            {statusLabels[farm.status] || farm.status}
+                          </span>
+                        </td>
+                        <td className="py-3 px-3">
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${approvalColor}`}>
+                            {approvalLabel}
+                          </span>
+                        </td>
+                        <td className="py-3 px-3">
+                          <div className="flex items-center space-x-1">
+                            <button
+                              onClick={() => setSelectedFarm(farm)}
+                              className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg"
+                              title="Xem chi tiết"
+                            >
+                              <FiEye size={14} />
+                            </button>
+                            <button
+                              onClick={() => handleAdminDeleteFarm(farm)}
+                              className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg"
+                              title="Xóa thửa đất"
+                            >
+                              <FiTrash2 size={14} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="text-center py-10">
+              <FiMap className="mx-auto text-4xl text-gray-300 mb-3" />
+              <p className="text-gray-500 text-sm">Chưa có thửa đất nào</p>
+            </div>
+          )}
+        </div>
+
       </div>
 
       {/* Upload Modal */}
@@ -695,13 +847,16 @@ const RegionsManagePage = () => {
                 <p className="text-gray-700">{(selectedRegion.totalArea / 10000).toFixed(2)} ha</p>
               </div>
             </div>
-            {selectedRegion.plannedCrops?.length > 0 && (
+            {(selectedRegion.zoneCode || selectedRegion.zoneType) && (
               <div>
-                <label className="text-sm text-gray-500">Cây trồng được hoạch định</label>
-                <div className="flex flex-wrap gap-2 mt-1">
-                  {selectedRegion.plannedCrops.map((crop, idx) => (
-                    <span key={idx} className="badge-success">{crop}</span>
-                  ))}
+                <label className="text-sm text-gray-500">Phân loại vùng</label>
+                <div className="flex items-center gap-2 mt-1">
+                  {selectedRegion.zoneCode && (
+                    <span className="font-mono font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded">{selectedRegion.zoneCode}</span>
+                  )}
+                  {selectedRegion.zoneType && (
+                    <span className="text-sm text-gray-600">({selectedRegion.zoneType === 'VLT' ? 'Vùng cây lương thực' : selectedRegion.zoneType === 'VCN' ? 'Vùng cây công nghiệp' : 'Vùng cây ăn quả & rau màu'})</span>
+                  )}
                 </div>
               </div>
             )}
@@ -774,118 +929,7 @@ const RegionsManagePage = () => {
         )}
       </Modal>
 
-      {/* Assign/Create Land Modal */}
-      <Modal
-        isOpen={showAssignModal}
-        onClose={() => setShowAssignModal(false)}
-        title={assignMode ? "Tạo thửa đất cho nông dân" : "Tạo thửa đất mới"}
-        size="lg"
-      >
-        <div className="space-y-6">
-          {assignMode && (
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <h4 className="font-semibold text-gray-900">Thông tin người nhận</h4>
-              <div className="grid grid-cols-2 gap-4 mt-2 text-sm">
-                <div>
-                  <span className="text-gray-500">Họ tên:</span>
-                  <span className="ml-2 font-medium">{assignRequest?.user?.fullName}</span>
-                </div>
-                <div>
-                  <span className="text-gray-500">Tài khoản:</span>
-                  <span className="ml-2 font-medium">{assignRequest?.user?.username}</span>
-                </div>
-              </div>
-            </div>
-          )}
 
-          <form onSubmit={handleAssignSubmit}>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Tên thửa đất</label>
-                <input
-                  type="text"
-                  className="input-field"
-                  value={assignForm.name}
-                  onChange={(e) => setAssignForm({ ...assignForm, name: e.target.value })}
-                  placeholder="VD: Thửa đất số 1"
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Loại cây trồng (dự kiến)</label>
-                  <input
-                    type="text"
-                    className="input-field"
-                    value={assignForm.cropType}
-                    onChange={(e) => setAssignForm({ ...assignForm, cropType: e.target.value })}
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Diện tích (m²)</label>
-                  <input
-                    type="number"
-                    className="input-field"
-                    value={assignForm.area}
-                    onChange={(e) => setAssignForm({ ...assignForm, area: e.target.value })}
-                    required
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Thuộc vùng quy hoạch</label>
-                <select
-                  className="input-field"
-                  value={assignForm.regionId}
-                  onChange={(e) => setAssignForm({ ...assignForm, regionId: e.target.value })}
-                >
-                  <option value="">-- Chọn vùng --</option>
-                  {regions.map(r => (
-                    <option key={r._id} value={r._id}>{r.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Tọa độ (GeoJSON Polygon)</label>
-                <div className="mb-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowAssignModal(false);
-                      setDrawingMode('farm');
-                      toast.success('Hãy vẽ thửa đất trên bản đồ', { icon: '✏️' });
-                    }}
-                    className="text-sm text-blue-600 hover:text-blue-800 flex items-center font-medium"
-                  >
-                    <FiMap className="mr-1" />
-                    Vẽ trên bản đồ (Tự động điền)
-                  </button>
-                </div>
-                <textarea
-                  className="input-field font-mono text-xs"
-                  rows={3}
-                  value={assignForm.coordinates}
-                  onChange={(e) => setAssignForm({ ...assignForm, coordinates: e.target.value })}
-                  placeholder="[[lng, lat], [lng, lat], ...]"
-                  required
-                />
-                <p className="text-xs text-gray-500 mt-1">Copy chuỗi tọa độ Polygon vào đây hoặc dùng công cụ vẽ.</p>
-              </div>
-
-              <div className="flex space-x-3 pt-4">
-                <button type="button" onClick={() => setShowAssignModal(false)} className="flex-1 btn-secondary">Hủy</button>
-                <button type="submit" disabled={assigning} className="flex-1 btn-primary">
-                  {assigning ? 'Đang xử lý...' : (assignMode ? 'Xác nhận & Giao đất' : 'Tạo mới')}
-                </button>
-              </div>
-            </div>
-          </form>
-        </div>
-      </Modal>
 
       {/* Create Region Modal */}
       <Modal
@@ -896,6 +940,7 @@ const RegionsManagePage = () => {
       >
         <form onSubmit={handleRegionSubmit}>
           <div className="space-y-4">
+            {/* Hàng 1: Tên vùng */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Tên vùng</label>
               <input
@@ -903,10 +948,51 @@ const RegionsManagePage = () => {
                 className="input-field"
                 value={pendingRegionForm.name}
                 onChange={(e) => setPendingRegionForm({ ...pendingRegionForm, name: e.target.value })}
-                placeholder="VD: Vùng trồng lúa A"
+                placeholder="VD: Vùng cây lương thực Kiến Xương"
                 required
               />
             </div>
+
+            {/* Hàng 2: Phân loại vùng (ngay dưới tên) */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Phân loại vùng quy hoạch</label>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { label: 'Vùng cây lương thực', short: 'VLT' },
+                  { label: 'Vùng cây công nghiệp', short: 'VCN' },
+                  { label: 'Vùng cây ăn quả & rau màu', short: 'VAR' },
+                ].map(({ label, short }) => (
+                  <button
+                    key={short}
+                    type="button"
+                    onClick={() => handleZoneTypeChange(short)}
+                    className={`p-3 rounded-lg border-2 text-center text-sm font-medium transition-all ${pendingRegionForm.zoneType === short
+                      ? 'border-primary-500 bg-primary-50 text-primary-700'
+                      : 'border-gray-200 hover:border-gray-300 text-gray-600'
+                      }`}
+                  >
+                    <span className="block font-bold text-xs mb-0.5">{short}</span>
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Hàng 3: Xem trước mã vùng */}
+            {pendingRegionForm.zoneType && (
+              <div className="flex items-center space-x-3 bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <div>
+                  <p className="text-xs text-blue-500 font-medium">Mã vùng (tự động)</p>
+                  <p className="text-xl font-bold text-blue-700 font-mono">
+                    {pendingRegionForm.zoneCode || '...'}
+                  </p>
+                </div>
+                <p className="text-xs text-blue-600 flex-1">
+                  Số thứ tự được tính riêng theo từng phân loại. Mã này sẽ được lưu vào hệ thống khi tạo mới.
+                </p>
+              </div>
+            )}
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Mô tả</label>
               <textarea
@@ -938,17 +1024,6 @@ const RegionsManagePage = () => {
                   required
                 />
               </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Cây trồng được hoạch định (cách nhau bởi dấu phẩy)</label>
-              <input
-                type="text"
-                className="input-field"
-                value={pendingRegionForm.plannedCrops}
-                onChange={(e) => setPendingRegionForm({ ...pendingRegionForm, plannedCrops: e.target.value })}
-                placeholder="VD: Lúa, Ngô, Khoai"
-                required
-              />
             </div>
 
             <div>
@@ -986,6 +1061,112 @@ const RegionsManagePage = () => {
             </div>
           </div>
         </form>
+      </Modal>
+
+      {/* Rename Region Modal */}
+      <Modal
+        isOpen={showRenameModal}
+        onClose={() => setShowRenameModal(false)}
+        title="Đổi tên vùng quy hoạch"
+        size="sm"
+      >
+        <form onSubmit={handleRenameRegion} className="space-y-4">
+          {renamingRegion?.zoneCode && (
+            <p className="text-sm text-gray-500">
+              Mã vùng: <span className="font-mono font-bold text-blue-700">{renamingRegion.zoneCode}</span>
+            </p>
+          )}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Tên mới</label>
+            <input
+              type="text"
+              className="input-field"
+              value={renameValue}
+              onChange={(e) => setRenameValue(e.target.value)}
+              placeholder="Nhập tên vùng mới..."
+              required
+              autoFocus
+            />
+          </div>
+          <div className="flex space-x-3">
+            <button type="button" onClick={() => setShowRenameModal(false)} className="flex-1 btn-secondary">Hủy</button>
+            <button type="submit" disabled={savingRename} className="flex-1 btn-primary">
+              {savingRename ? 'Đang lưu...' : 'Lưu tên mới'}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Deleted Regions Modal */}
+      <DeletedRegionsModal
+        isOpen={showDeletedModal}
+        onClose={() => setShowDeletedModal(false)}
+        onRegionRestored={fetchData}
+      />
+
+      {/* Delete Region Confirm Modal */}
+      <Modal isOpen={activeModal.type === 'deleteRegion'} onClose={() => setActiveModal({ type: null, data: null, extra: '' })} title="Xác nhận xóa" size="sm">
+        <p className="text-gray-600 mb-6">Bạn có chắc muốn xóa vùng quy hoạch này không? Hành động này không thể hoàn tác.</p>
+        <div className="flex space-x-3">
+          <Button onClick={() => setActiveModal({ type: null, data: null, extra: '' })} variant="secondary" className="flex-1">
+            Hủy
+          </Button>
+          <Button onClick={confirmDeleteRegion} variant="danger" className="flex-1">
+            Xóa
+          </Button>
+        </div>
+      </Modal>
+
+      {/* Revoke Farm Modal */}
+      <Modal isOpen={activeModal.type === 'revokeFarm'} onClose={() => setActiveModal({ type: null, data: null, extra: '' })} title="Thu hồi đất" size="sm">
+        <form onSubmit={confirmRevokeFarm} className="space-y-4">
+          <p className="text-gray-600 text-sm">Vui lòng nhập lý do thu hồi đất:</p>
+          <input
+            type="text"
+            className="input-field"
+            value={activeModal.extra}
+            onChange={(e) => setActiveModal(prev => ({ ...prev, extra: e.target.value }))}
+            placeholder="Lý do thu hồi..."
+            required
+            autoFocus
+          />
+          <div className="flex space-x-3">
+            <Button type="button" onClick={() => setActiveModal({ type: null, data: null, extra: '' })} variant="secondary" className="flex-1">
+              Hủy
+            </Button>
+            <Button type="submit" loading={revoking} variant="danger" className="flex-1">
+              Thu hồi
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Assign Existing Farm Modal */}
+      <Modal isOpen={activeModal.type === 'assignFarm'} onClose={() => setActiveModal({ type: null, data: null, extra: '' })} title="Xác nhận giao đất" size="sm">
+        <p className="text-gray-600 mb-6">
+          Bạn có chắc muốn giao thửa đất "{activeModal.data?.name}" cho nông dân <strong>{assignRequest?.user?.fullName}</strong>?
+        </p>
+        <div className="flex space-x-3">
+          <Button onClick={() => setActiveModal({ type: null, data: null, extra: '' })} variant="secondary" className="flex-1">
+            Hủy
+          </Button>
+          <Button onClick={confirmAssignFarm} loading={assigning} variant="primary" className="flex-1">
+            Giao đất
+          </Button>
+        </div>
+      </Modal>
+
+      {/* Admin Delete Farm Confirm Modal */}
+      <Modal isOpen={activeModal.type === 'deleteFarm'} onClose={() => setActiveModal({ type: null, data: null, extra: '' })} title="Xác nhận xóa thửa đất" size="sm">
+        <p className="text-gray-600 mb-6">Xóa thửa đất "{activeModal.data?.name || 'Thửa đất'}" của {activeModal.data?.ownerId?.fullName || 'nông dân'}? Hành động này không thể hoàn tác.</p>
+        <div className="flex space-x-3">
+          <Button onClick={() => setActiveModal({ type: null, data: null, extra: '' })} variant="secondary" className="flex-1">
+            Hủy
+          </Button>
+          <Button onClick={confirmAdminDeleteFarm} variant="danger" className="flex-1">
+            Xóa
+          </Button>
+        </div>
       </Modal>
     </div >
   );

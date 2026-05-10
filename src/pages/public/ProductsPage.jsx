@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { FiSearch, FiFilter, FiGrid, FiList, FiX } from 'react-icons/fi';
-import { GiWheat } from 'react-icons/gi';
+import { IconWheat } from '../../components/icons/AgriIcons';
 import { productAPI } from '../../services/api';
 import ProductCard from '../../components/products/ProductCard';
-import ChatBot from '../../components/chat/ChatBot';
+import Button from '../../components/common/Button';
+
 import Loading from '../../components/common/Loading';
 
 const ProductsPage = () => {
@@ -62,10 +63,10 @@ const ProductsPage = () => {
       <div className="bg-gradient-to-r from-primary-600 to-primary-800 text-white py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <h1 className="font-display text-3xl md:text-4xl font-bold text-center mb-4">
-            Nông sản Việt Nam
+            Farmmate<span className="text-primary-500">4U</span>
           </h1>
           <p className="text-center text-primary-100 max-w-2xl mx-auto mb-8">
-            Khám phá các sản phẩm nông sản chất lượng cao từ các vùng quy hoạch, 
+            Khám phá các sản phẩm nông sản chất lượng cao từ các vùng quy hoạch,
             được chứng nhận và có thể truy xuất nguồn gốc.
           </p>
 
@@ -97,9 +98,8 @@ const ProductsPage = () => {
           <div className="flex items-center space-x-4">
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
-                showFilters ? 'bg-primary-100 text-primary-700' : 'bg-white text-gray-600 hover:bg-gray-50'
-              } border border-gray-200`}
+              className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${showFilters ? 'bg-primary-100 text-primary-700' : 'bg-white text-gray-600 hover:bg-gray-50'
+                } border border-gray-200`}
             >
               <FiFilter />
               <span>Bộ lọc</span>
@@ -169,11 +169,10 @@ const ProductsPage = () => {
                     <button
                       key={cert}
                       onClick={() => { setCertification(cert === certification ? '' : cert); setPage(1); }}
-                      className={`px-3 py-1 rounded-full text-sm transition-colors ${
-                        certification === cert
-                          ? 'bg-primary-600 text-white'
-                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                      }`}
+                      className={`px-3 py-1 rounded-full text-sm transition-colors ${certification === cert
+                        ? 'bg-primary-600 text-white'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        }`}
                     >
                       {cert}
                     </button>
@@ -205,21 +204,20 @@ const ProductsPage = () => {
                 >
                   Trước
                 </button>
-                
+
                 {[...Array(totalPages)].map((_, idx) => (
                   <button
                     key={idx}
                     onClick={() => setPage(idx + 1)}
-                    className={`w-10 h-10 rounded-lg transition-colors ${
-                      page === idx + 1
-                        ? 'bg-primary-600 text-white'
-                        : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
-                    }`}
+                    className={`w-10 h-10 rounded-lg transition-colors ${page === idx + 1
+                      ? 'bg-primary-600 text-white'
+                      : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+                      }`}
                   >
                     {idx + 1}
                   </button>
                 ))}
-                
+
                 <button
                   onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                   disabled={page === totalPages}
@@ -232,22 +230,22 @@ const ProductsPage = () => {
           </>
         ) : (
           <div className="text-center py-20">
-            <GiWheat className="text-7xl text-gray-300 mx-auto mb-6" />
+            <IconWheat className="text-7xl text-gray-300 mx-auto mb-6" />
             <h3 className="text-xl font-semibold text-gray-700 mb-2">
               Không tìm thấy sản phẩm
             </h3>
             <p className="text-gray-500 mb-6">
               Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm
             </p>
-            <button onClick={clearFilters} className="btn-primary">
+            <Button onClick={clearFilters} variant="primary">
               Xóa bộ lọc
-            </button>
+            </Button>
           </div>
         )}
       </div>
 
       {/* Chatbot */}
-      <ChatBot chatType="public" />
+
     </div>
   );
 };

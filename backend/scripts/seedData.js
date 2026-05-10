@@ -9,7 +9,6 @@ import User from '../models/User.js';
 import Region from '../models/Region.js';
 import Farm from '../models/Farm.js';
 import Product from '../models/Product.js';
-import CropType from '../models/CropType.js';
 import Policy from '../models/Policy.js';
 
 const MONGODB_URI = process.env.MONGODB_URI;
@@ -24,7 +23,6 @@ const seedData = async () => {
     await Region.deleteMany({});
     await Farm.deleteMany({});
     await Product.deleteMany({});
-    await CropType.deleteMany({});
     await Policy.deleteMany({});
     console.log('🗑️ Cleared existing data');
 
@@ -58,50 +56,7 @@ const seedData = async () => {
 
     console.log('👥 Created users');
 
-    // Create crop types
-    const cropTypes = await CropType.insertMany([
-      {
-        name: 'Lúa chất lượng cao',
-        category: 'Lương thực',
-        description: 'Lúa được trồng theo tiêu chuẩn VietGAP',
-        growthDuration: 120,
-        suitableSoil: ['Phù sa', 'Đất thịt'],
-        suitableSeason: ['Đông Xuân', 'Hè Thu'],
-        averageYield: 6500,
-        icon: '🌾'
-      },
-      {
-        name: 'Rau muống',
-        category: 'Rau củ',
-        description: 'Rau muống xanh, giòn, sạch',
-        growthDuration: 30,
-        suitableSoil: ['Phù sa', 'Đất ẩm'],
-        suitableSeason: ['Quanh năm'],
-        averageYield: 20000,
-        icon: '🥬'
-      },
-      {
-        name: 'Cà chua',
-        category: 'Rau củ',
-        description: 'Cà chua bi và cà chua thường',
-        growthDuration: 75,
-        suitableSoil: ['Đất thịt', 'Đất pha cát'],
-        suitableSeason: ['Thu Đông', 'Xuân'],
-        averageYield: 35000,
-        icon: '🍅'
-      },
-      {
-        name: 'Dưa hấu',
-        category: 'Trái cây',
-        description: 'Dưa hấu đỏ, ngọt mát',
-        growthDuration: 80,
-        suitableSoil: ['Đất cát pha', 'Đất phù sa'],
-        suitableSeason: ['Hè'],
-        averageYield: 30000,
-        icon: '🍉'
-      }
-    ]);
-    console.log('🌱 Created crop types');
+
 
     // Create regions
     const region1 = await Region.create({

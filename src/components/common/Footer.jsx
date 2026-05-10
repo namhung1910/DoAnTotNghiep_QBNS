@@ -1,5 +1,4 @@
 import { Link } from 'react-router-dom';
-import { GiWheat } from 'react-icons/gi';
 import { FiFacebook, FiMail, FiPhone, FiMapPin } from 'react-icons/fi';
 
 const Footer = () => {
@@ -10,15 +9,17 @@ const Footer = () => {
           {/* Brand */}
           <div className="col-span-1 md:col-span-2">
             <div className="flex items-center space-x-2 mb-4">
-              <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-700 rounded-xl flex items-center justify-center">
-                <GiWheat className="text-white text-xl" />
-              </div>
+              <img
+                src="/assets/LogoFarmmate4u.webp"
+                alt="Farmmate4U Logo"
+                className="w-10 h-10 object-contain"
+              />
               <div>
-                <h3 className="font-display font-bold text-lg text-white">NôngSản Việt Nam</h3>
+                <h3 className="font-display font-bold text-lg text-white">Farmmate<span className="text-primary-500">4U</span></h3>
               </div>
             </div>
             <p className="text-gray-400 mb-4 max-w-md">
-              Hệ thống quảng bá và hỗ trợ hoạch định vùng nông sản, 
+              Hệ thống quảng bá và hỗ trợ hoạch định vùng nông sản,
               kết nối nông dân với người tiêu dùng qua công nghệ bản đồ số và AI.
             </p>
             <div className="flex space-x-4">
@@ -73,10 +74,7 @@ const Footer = () => {
         <hr className="my-8 border-gray-800" />
 
         <div className="flex flex-col md:flex-row justify-between items-center text-sm text-gray-500">
-          <p>© 2025 NôngSản Việt Nam. All rights reserved.</p>
-          <p className="mt-2 md:mt-0">
-            Phát triển bởi <span className="text-primary-400">Đồ án tốt nghiệp</span>
-          </p>
+          <p>© {new Date().getFullYear()} Farm Mate <span className="text-primary-500">For You</span> With <span className="animate-pulse text-primary-500">💚</span></p>
         </div>
       </div>
     </footer>

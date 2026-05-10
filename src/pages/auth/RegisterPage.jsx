@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FiUser, FiLock, FiEye, FiEyeOff, FiUserPlus, FiPhone, FiMapPin, FiType } from 'react-icons/fi';
-import { GiWheat } from 'react-icons/gi';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
+import Button from '../../components/common/Button';
 
 const RegisterPage = () => {
     const [formData, setFormData] = useState({
@@ -62,12 +62,13 @@ const RegisterPage = () => {
                 {/* Logo */}
                 <div className="text-center mb-8">
                     <Link to="/" className="inline-flex items-center space-x-2">
-                        <div className="w-12 h-12 bg-gradient-to-br from-primary-500 to-primary-700 rounded-xl flex items-center justify-center">
-                            <GiWheat className="text-white text-2xl" />
-                        </div>
+                        <img
+                            src="/assets/LogoFarmmate4u.webp"
+                            alt="Farmmate4U Logo"
+                            className="w-12 h-12 object-contain"
+                        />
                         <div className="text-left">
-                            <h1 className="font-display font-bold text-xl text-gray-900">NôngSản</h1>
-                            <p className="text-xs text-gray-500">Việt Nam</p>
+                            <h1 className="font-display font-bold text-xl text-gray-900">Farmmate<span className="text-primary-500">4U</span></h1>
                         </div>
                     </Link>
                 </div>
@@ -203,20 +204,14 @@ const RegisterPage = () => {
                         </div>
 
                         {/* Register Button */}
-                        <button
+                        <Button
                             type="submit"
-                            disabled={loading}
-                            className="w-full btn-primary flex items-center justify-center space-x-2 py-3 mt-6"
+                            loading={loading}
+                            icon={FiUserPlus}
+                            className="w-full py-3 mt-6"
                         >
-                            {loading ? (
-                                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                            ) : (
-                                <>
-                                    <FiUserPlus />
-                                    <span>Đăng ký tài khoản</span>
-                                </>
-                            )}
-                        </button>
+                            Đăng ký tài khoản
+                        </Button>
                     </form>
 
                     {/* Login Link */}

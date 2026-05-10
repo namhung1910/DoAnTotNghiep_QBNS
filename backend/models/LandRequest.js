@@ -16,6 +16,20 @@ const landRequestSchema = new mongoose.Schema({
         required: [true, 'Vui lòng nhập cam kết canh tác'],
         trim: true
     },
+    // Thông tin thửa đất do farmer đề xuất
+    cropType: {
+        type: String,
+        default: ''
+    },
+    requestedArea: {
+        type: Number,
+        default: 0  // đơn vị: m²
+    },
+    regionId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Region',
+        default: null
+    },
     status: {
         type: String,
         enum: ['pending', 'approved', 'rejected'],

@@ -23,7 +23,7 @@ export const AuthProvider = ({ children }) => {
   const checkAuth = async () => {
     const token = localStorage.getItem('token');
     const savedUser = localStorage.getItem('user');
-    
+
     if (token && savedUser) {
       try {
         const response = await authAPI.getProfile();
@@ -41,11 +41,11 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await authAPI.login(credentials);
       const { token, ...userData } = response.data;
-      
+
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(userData));
       setUser(userData);
-      
+
       toast.success(`Chào mừng ${userData.fullName}!`);
       return userData;
     } catch (error) {
@@ -88,6 +88,17 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const deleteAccount = async (data) => {
+    try {
+      await authAPI.deleteAccount(data);
+      logout();
+    } catch (error) {
+      const message = error.response?.data?.message || 'Xóa tài khoản thất bại';
+      toast.error(message);
+      throw error;
+    }
+  };
+
   const value = {
     user,
     loading,
@@ -95,6 +106,7 @@ export const AuthProvider = ({ children }) => {
     register,
     logout,
     updateProfile,
+    deleteAccount,
     isAuthenticated: !!user,
     isAdmin: user?.role === 'admin',
     isFarmer: user?.role === 'farmer',

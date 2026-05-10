@@ -1,15 +1,19 @@
-import { useState } from 'react';
+import { useState, lazy, Suspense } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import NotificationBell from '../common/NotificationBell';
 import {
   FiHome, FiMap, FiPackage, FiMessageCircle, FiUsers, FiSettings,
   FiMenu, FiX, FiLogOut, FiChevronRight, FiGrid, FiFileText,
-  FiBarChart2, FiLayers
+  FiBarChart2
 } from 'react-icons/fi';
-import { GiWheat, GiFarmer, GiPlantRoots } from 'react-icons/gi';
+// ChatBot lazy loaded — defers react-markdown (336KB) until widget is used
+const ChatBot = lazy(() => import('../chat/ChatBot'));
+import { getInitials } from '../../utils/format';
 
 const DashboardLayout = ({ type = 'farmer' }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [imgError, setImgError] = useState(false);
   const { user, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -18,7 +22,7 @@ const DashboardLayout = ({ type = 'farmer' }) => {
     { path: '/farmer', icon: FiHome, label: 'Tổng quan' },
     { path: '/farmer/farms', icon: FiMap, label: 'Thửa đất của tôi' },
     { path: '/farmer/products', icon: FiPackage, label: 'Sản phẩm của tôi' },
-    { path: '/farmer/contacts', icon: FiMessageCircle, label: 'Yêu cầu liên hệ' },
+    { path: '/farmer/statistics', icon: FiBarChart2, label: 'Thống kê' },
     { path: '/farmer/profile', icon: FiSettings, label: 'Cài đặt tài khoản' },
   ];
 
@@ -29,7 +33,7 @@ const DashboardLayout = ({ type = 'farmer' }) => {
     { path: '/admin/regions', icon: FiMap, label: 'Quản lý đất đai' },
     { path: '/admin/products', icon: FiPackage, label: 'Quản lý sản phẩm' },
     { path: '/admin/users', icon: FiUsers, label: 'Quản lý nông dân' },
-    { path: '/admin/crop-types', icon: GiWheat, label: 'Danh mục cây trồng' },
+
     { path: '/admin/policies', icon: FiFileText, label: 'Chính sách' },
     { path: '/admin/statistics', icon: FiBarChart2, label: 'Thống kê & Báo cáo' },
   ];
@@ -68,11 +72,13 @@ const DashboardLayout = ({ type = 'farmer' }) => {
         {/* Logo */}
         <div className="h-16 flex items-center justify-between px-4 border-b border-gray-100">
           <Link to="/" className="flex items-center space-x-2">
-            <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-700 rounded-xl flex items-center justify-center">
-              <GiWheat className="text-white text-xl" />
-            </div>
+            <img
+              src="/assets/LogoFarmmate4u.webp"
+              alt="Farmmate4U Logo"
+              className="w-10 h-10 object-contain"
+            />
             <div>
-              <h1 className="font-display font-bold text-gray-900">NôngSản</h1>
+              <h1 className="font-display font-bold text-gray-900">Farmmate<span className="text-primary-500">4U</span></h1>
               <p className="text-xs text-gray-500">{type === 'admin' ? 'Hợp tác xã' : 'Nông dân'}</p>
             </div>
           </Link>
@@ -87,10 +93,14 @@ const DashboardLayout = ({ type = 'farmer' }) => {
         {/* User info */}
         <div className="p-4 border-b border-gray-100">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-primary-400 to-primary-600 rounded-full flex items-center justify-center">
-              <span className="text-white font-semibold">
-                {user?.fullName?.charAt(0) || 'U'}
-              </span>
+            <div className="w-10 h-10 bg-gradient-to-br from-primary-400 to-primary-600 rounded-full flex items-center justify-center overflow-hidden">
+              {user?.avatar ? (
+                <img src={user.avatar} alt="avatar" className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-white font-semibold">
+                  {getInitials(user?.fullName)}
+                </span>
+              )}
             </div>
             <div className="flex-1 min-w-0">
               <p className="font-medium text-gray-900 truncate">{user?.fullName}</p>
@@ -158,23 +168,34 @@ const DashboardLayout = ({ type = 'farmer' }) => {
           <div className="flex-1 lg:flex-none" />
 
           <div className="flex items-center space-x-4">
-            <Link
-              to={type === 'admin' ? '/admin/complaints' : '/farmer/contacts'}
-              className="p-2 hover:bg-gray-100 rounded-lg relative"
-            >
-              <FiMessageCircle size={20} />
-              {/* <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
-                3
-              </span> */}
-            </Link>
+            {type === 'admin' ? (
+              <Link
+                to="/admin/complaints"
+                className="p-2 hover:bg-gray-100 rounded-lg relative"
+                title="Giải quyết khiếu nại"
+              >
+                <FiMessageCircle size={20} />
+              </Link>
+            ) : (
+              <NotificationBell />
+            )}
             <Link
               to={type === 'admin' ? '/admin/profile' : '/farmer/profile'}
               className="flex items-center space-x-2 p-2 hover:bg-gray-100 rounded-lg"
             >
-              <div className="w-8 h-8 bg-gradient-to-br from-primary-400 to-primary-600 rounded-full flex items-center justify-center">
-                <span className="text-white text-sm font-semibold">
-                  {user?.fullName?.charAt(0) || 'U'}
-                </span>
+              <div className="w-8 h-8 bg-gradient-to-br from-primary-400 to-primary-600 rounded-full flex items-center justify-center overflow-hidden">
+                {user?.avatar && !imgError ? (
+                  <img
+                    src={user.avatar}
+                    alt="avatar"
+                    className="w-full h-full object-cover"
+                    onError={() => setImgError(true)}
+                  />
+                ) : (
+                  <span className="text-white text-sm font-semibold">
+                    {getInitials(user?.fullName)}
+                  </span>
+                )}
               </div>
               <span className="hidden sm:block text-sm font-medium text-gray-700">
                 {user?.fullName}
@@ -188,6 +209,11 @@ const DashboardLayout = ({ type = 'farmer' }) => {
           <Outlet />
         </main>
       </div>
+
+      {/* Chatbot rendered globally for Dashboard — lazy loaded */}
+      <Suspense fallback={null}>
+        <ChatBot chatType={type} />
+      </Suspense>
     </div>
   );
 };

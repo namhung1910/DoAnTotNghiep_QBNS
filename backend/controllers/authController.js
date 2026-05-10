@@ -1,5 +1,7 @@
 import User from '../models/User.js';
+import Counter from '../models/Counter.js';
 import { generateToken } from '../middleware/auth.js';
+import { uploadImageToCloudinary, deleteImageFromCloudinary } from '../services/cloudinaryService.js';
 
 // @desc    Đăng ký tài khoản mới
 // @route   POST /api/auth/register
@@ -25,6 +27,17 @@ export const register = async (req, res) => {
     });
 
     if (user) {
+      // Sinh farmerCode tự động cho nông dân — atomic, không race condition
+      if (user.role === 'farmer') {
+        const counter = await Counter.findByIdAndUpdate(
+          'farmerCode',
+          { $inc: { seq: 1 } },
+          { new: true, upsert: true }
+        );
+        user.farmerCode = `ND${String(counter.seq).padStart(3, '0')}`;
+        await user.save();
+      }
+
       res.status(201).json({
         _id: user._id,
         username: user.username,
@@ -32,6 +45,7 @@ export const register = async (req, res) => {
         role: user.role,
         phone: user.phone,
         address: user.address,
+        farmerCode: user.farmerCode || undefined,
         token: generateToken(user._id)
       });
     }
@@ -109,13 +123,30 @@ export const updateProfile = async (req, res) => {
       user.fullName = req.body.fullName || user.fullName;
       user.phone = req.body.phone || user.phone;
       user.address = req.body.address || user.address;
-      
+
       if (req.body.password) {
         user.password = req.body.password;
       }
 
       if (req.file) {
-        user.avatar = `/uploads/avatars/${req.file.filename}`;
+        // Xóa ảnh cũ trên Cloudinary nếu có
+        if (user.avatar && user.avatar.includes('cloudinary.com')) {
+          try {
+            const urlParts = user.avatar.split('/');
+            const folderAndId = urlParts.slice(-2).join('/').split('.')[0];
+            await deleteImageFromCloudinary(folderAndId);
+          } catch (e) {
+            console.error('Lỗi xóa avatar cũ:', e.message);
+          }
+        }
+
+        try {
+          const uploadResult = await uploadImageToCloudinary(req.file.buffer, 'avatars');
+          user.avatar = uploadResult.url;
+        } catch (e) {
+          console.error('Lỗi upload avatar mới:', e.message);
+          // throw error or handles normally depending on preferences
+        }
       }
 
       const updatedUser = await user.save();
@@ -144,13 +175,13 @@ export const updateProfile = async (req, res) => {
 export const getUsers = async (req, res) => {
   try {
     const { role, search, page = 1, limit = 10 } = req.query;
-    
+
     let query = {};
-    
+
     if (role) {
       query.role = role;
     }
-    
+
     if (search) {
       query.$or = [
         { username: { $regex: search, $options: 'i' } },
@@ -192,6 +223,106 @@ export const updateUserStatus = async (req, res) => {
     await user.save();
 
     res.json({ message: 'Cập nhật trạng thái thành công', user });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+};
+
+// @desc    Đổi mật khẩu người dùng
+// @route   PUT /api/auth/change-password
+// @access  Private
+export const changePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    const user = await User.findById(req.user._id);
+
+    if (!user) {
+      return res.status(404).json({ message: 'Không tìm thấy người dùng' });
+    }
+
+    const isMatch = await user.matchPassword(currentPassword);
+    if (!isMatch) {
+      return res.status(400).json({ message: 'Mật khẩu hiện tại không đúng' });
+    }
+
+    user.password = newPassword;
+    await user.save();
+
+    res.json({ message: 'Đổi mật khẩu thành công' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+};
+
+
+// @desc    Đổi số điện thoại
+// @route   PUT /api/auth/change-phone
+// @access  Private
+export const changePhone = async (req, res) => {
+  try {
+    const { phone, currentPassword } = req.body;
+    const user = await User.findById(req.user._id);
+
+    if (!user) {
+      return res.status(404).json({ message: 'Không tìm thấy người dùng' });
+    }
+
+    const isMatch = await user.matchPassword(currentPassword);
+    if (!isMatch) {
+      return res.status(400).json({ message: 'Mật khẩu hiện tại không đúng' });
+    }
+
+    user.phone = phone;
+    await user.save();
+
+    res.json({
+      _id: user._id,
+      username: user.username,
+      fullName: user.fullName,
+      role: user.role,
+      phone: user.phone,
+      address: user.address,
+      avatar: user.avatar
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+};
+
+// @desc    Xóa tài khoản vĩnh viễn (Hard Delete)
+// @route   DELETE /api/auth/account
+// @access  Private
+export const deleteAccount = async (req, res) => {
+  try {
+    const { currentPassword } = req.body;
+    const user = await User.findById(req.user._id);
+
+    if (!user) {
+      return res.status(404).json({ message: 'Không tìm thấy người dùng' });
+    }
+
+    const isMatch = await user.matchPassword(currentPassword);
+    if (!isMatch) {
+      return res.status(400).json({ message: 'Mật khẩu hiện tại không đúng' });
+    }
+
+    // Xóa avatar trên Cloudinary nếu có
+    if (user.avatar && user.avatar.includes('cloudinary.com')) {
+      try {
+        const urlParts = user.avatar.split('/');
+        const folderAndId = urlParts.slice(-2).join('/').split('.')[0];
+        await deleteImageFromCloudinary(folderAndId);
+      } catch (e) {
+        console.error('Lỗi xóa avatar cũ:', e.message);
+      }
+    }
+
+    await User.findByIdAndDelete(req.user._id);
+
+    res.json({ message: 'Tài khoản đã được xóa vĩnh viễn' });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Lỗi server', error: error.message });

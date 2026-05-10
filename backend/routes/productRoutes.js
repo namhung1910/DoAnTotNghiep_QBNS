@@ -8,10 +8,12 @@ import {
   deleteProduct,
   getPendingProducts,
   reviewProduct,
-  incrementViewCount
+  incrementViewCount,
+  trackInterest,
+  recordSale
 } from '../controllers/productController.js';
 import { protect, adminOnly, farmerOrAdmin } from '../middleware/auth.js';
-import { upload } from '../middleware/upload.js';
+import { uploadMemory } from '../middleware/upload.js';
 
 const router = express.Router();
 
@@ -19,12 +21,14 @@ const router = express.Router();
 router.get('/', getProducts);
 router.get('/:id', getProductById);
 router.post('/:id/view', incrementViewCount); // Increment view count
+router.post('/:id/track-interest', trackInterest); // Ghi nhận click Zalo/Phone
 
 // Farmer routes
 router.get('/user/my-products', protect, farmerOrAdmin, getMyProducts);
-router.post('/', protect, farmerOrAdmin, upload.array('productImages', 5), createProduct);
-router.put('/:id', protect, farmerOrAdmin, upload.array('productImages', 5), updateProduct);
+router.post('/', protect, farmerOrAdmin, uploadMemory.array('productImages', 5), createProduct);
+router.put('/:id', protect, farmerOrAdmin, uploadMemory.array('productImages', 5), updateProduct);
 router.delete('/:id', protect, farmerOrAdmin, deleteProduct);
+router.post('/:id/record-sale', protect, farmerOrAdmin, recordSale); // Ghi nhận xuất bán
 
 // Admin routes
 router.get('/admin/pending', protect, adminOnly, getPendingProducts);

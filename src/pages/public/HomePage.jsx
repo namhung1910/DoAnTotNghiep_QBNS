@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { FiMap, FiPackage, FiShield, FiMessageCircle, FiArrowRight, FiCheck, FiSearch } from 'react-icons/fi';
-import { GiWheat, GiFarmer, GiPlantRoots } from 'react-icons/gi';
+import { IconWheat } from '../../components/icons/AgriIcons';
 import { productAPI, statisticsAPI } from '../../services/api';
 import ProductCard from '../../components/products/ProductCard';
-import ChatBot from '../../components/chat/ChatBot';
+import Button from '../../components/common/Button';
+
 
 const HomePage = () => {
   const [featuredProducts, setFeaturedProducts] = useState([]);
@@ -86,7 +87,7 @@ const HomePage = () => {
             {/* Left Content */}
             <div className="stagger-children">
               <div className="inline-flex items-center space-x-2 px-4 py-2 bg-primary-100 text-primary-700 rounded-full text-sm font-medium mb-6">
-                <GiWheat className="text-lg" />
+                <IconWheat className="text-lg" />
                 <span>Hệ thống số hóa nông nghiệp</span>
               </div>
 
@@ -101,14 +102,12 @@ const HomePage = () => {
               </p>
 
               <div className="flex flex-col sm:flex-row gap-4 mt-8">
-                <Link to="/map" className="btn-primary flex items-center justify-center space-x-2">
-                  <FiMap />
-                  <span>Xem bản đồ</span>
-                </Link>
-                <Link to="/products" className="btn-secondary flex items-center justify-center space-x-2">
-                  <FiPackage />
-                  <span>Khám phá nông sản</span>
-                </Link>
+                <Button to="/map" variant="primary" icon={FiMap} className="w-full sm:w-auto">
+                  Xem bản đồ
+                </Button>
+                <Button to="/products" variant="secondary" icon={FiPackage} className="w-full sm:w-auto">
+                  Khám phá nông sản
+                </Button>
               </div>
 
               {/* Trust indicators */}
@@ -131,18 +130,18 @@ const HomePage = () => {
                 <div className="absolute inset-0 bg-gradient-to-br from-primary-400 to-primary-600 rounded-full opacity-10" />
 
                 {/* Floating elements */}
-                <div className="absolute top-10 left-10 w-20 h-20 bg-white rounded-2xl shadow-xl flex items-center justify-center animate-float">
+                <div className="absolute top-10 left-10 w-20 h-20 bg-white rounded-2xl shadow-xl flex items-center justify-center animate-float z-10">
                   <FiShield className="text-4xl text-primary-500" />
                 </div>
-                <div className="absolute top-20 right-10 w-16 h-16 bg-white rounded-2xl shadow-xl flex items-center justify-center animate-float" style={{ animationDelay: '1s' }}>
+                <div className="absolute top-20 right-10 w-16 h-16 bg-white rounded-2xl shadow-xl flex items-center justify-center animate-float z-10" style={{ animationDelay: '1s' }}>
                   <FiPackage className="text-3xl text-harvest-500" />
                 </div>
-                <div className="absolute bottom-20 left-20 w-16 h-16 bg-white rounded-2xl shadow-xl flex items-center justify-center animate-float" style={{ animationDelay: '2s' }}>
-                  <GiWheat className="text-3xl text-earth-500" />
+                <div className="absolute bottom-20 left-20 w-16 h-16 bg-white rounded-2xl shadow-xl flex items-center justify-center animate-float z-10" style={{ animationDelay: '2s' }}>
+                  <IconWheat className="text-3xl text-earth-500" />
                 </div>
 
                 {/* Center quality badge preview */}
-                <div className="absolute inset-16 bg-white rounded-3xl shadow-2xl overflow-hidden border-4 border-white p-6">
+                <div className="absolute inset-16 bg-white rounded-3xl shadow-2xl overflow-hidden border-4 border-white p-6 z-0">
                   <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-b from-green-50 to-white rounded-2xl">
                     <div className="relative mb-4">
                       <div className="absolute inset-0 bg-green-200 rounded-full animate-ping opacity-20"></div>
@@ -251,15 +250,15 @@ const HomePage = () => {
             </div>
           ) : (
             <div className="text-center py-12">
-              <GiWheat className="text-6xl text-gray-300 mx-auto mb-4" />
+              <IconWheat className="text-6xl text-gray-300 mx-auto mb-4" />
               <p className="text-gray-500">Chưa có sản phẩm nào được đăng tải</p>
             </div>
           )}
 
           <div className="text-center mt-8 sm:hidden">
-            <Link to="/products" className="btn-primary">
+            <Button to="/products" variant="primary">
               Xem tất cả sản phẩm
-            </Link>
+            </Button>
           </div>
         </div>
       </section>
@@ -281,7 +280,7 @@ const HomePage = () => {
       </section>
 
       {/* Chatbot */}
-      <ChatBot chatType="public" />
+
 
       <style>{`
         @keyframes float {

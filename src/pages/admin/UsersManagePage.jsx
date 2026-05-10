@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
-import { FiUsers, FiPlus, FiEdit2, FiLock, FiUnlock, FiSearch } from 'react-icons/fi';
-import { GiFarmer } from 'react-icons/gi';
+import { FiUsers, FiPlus, FiEdit2, FiLock, FiUnlock, FiSearch, FiUser } from 'react-icons/fi';
 import { authAPI } from '../../services/api';
 import Loading from '../../components/common/Loading';
 import Modal from '../../components/common/Modal';
 import toast from 'react-hot-toast';
+import Button from '../../components/common/Button';
 
 const UsersManagePage = () => {
   const [users, setUsers] = useState([]);
@@ -15,7 +15,7 @@ const UsersManagePage = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [creating, setCreating] = useState(false);
-  
+
   const [newUser, setNewUser] = useState({
     username: '',
     password: '',
@@ -32,11 +32,11 @@ const UsersManagePage = () => {
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      const response = await authAPI.getUsers({ 
-        role: roleFilter, 
-        search, 
-        page, 
-        limit: 10 
+      const response = await authAPI.getUsers({
+        role: roleFilter,
+        search,
+        page,
+        limit: 10
       });
       setUsers(response.data.users || []);
       setTotalPages(response.data.pages || 1);
@@ -67,7 +67,7 @@ const UsersManagePage = () => {
 
   const handleCreateUser = async (e) => {
     e.preventDefault();
-    
+
     if (!newUser.username || !newUser.password || !newUser.fullName) {
       toast.error('Vui lòng điền đầy đủ thông tin bắt buộc');
       return;
@@ -109,13 +109,13 @@ const UsersManagePage = () => {
           </h1>
           <p className="text-gray-600">Quản lý tài khoản nông dân và quản trị viên</p>
         </div>
-        <button 
+        <Button
           onClick={() => setShowCreateModal(true)}
-          className="btn-primary flex items-center space-x-2"
+          variant="primary"
+          icon={FiPlus}
         >
-          <FiPlus />
-          <span>Thêm nông dân</span>
-        </button>
+          Thêm nông dân
+        </Button>
       </div>
 
       {/* Filters */}
@@ -132,23 +132,21 @@ const UsersManagePage = () => {
                 placeholder="Tìm theo tên hoặc username..."
               />
             </div>
-            <button type="submit" className="btn-secondary">Tìm</button>
+            <Button type="submit" variant="secondary">Tìm</Button>
           </form>
-          
+
           <div className="flex gap-2">
             <button
               onClick={() => { setRoleFilter('farmer'); setPage(1); }}
-              className={`px-4 py-2 rounded-lg transition-colors ${
-                roleFilter === 'farmer' ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-600'
-              }`}
+              className={`px-4 py-2 rounded-lg transition-colors ${roleFilter === 'farmer' ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-600'
+                }`}
             >
               Nông dân
             </button>
             <button
               onClick={() => { setRoleFilter('admin'); setPage(1); }}
-              className={`px-4 py-2 rounded-lg transition-colors ${
-                roleFilter === 'admin' ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-600'
-              }`}
+              className={`px-4 py-2 rounded-lg transition-colors ${roleFilter === 'admin' ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-600'
+                }`}
             >
               Quản trị
             </button>
@@ -177,7 +175,7 @@ const UsersManagePage = () => {
                     <td className="py-3 px-4">
                       <div className="flex items-center space-x-3">
                         <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center">
-                          <GiFarmer className="text-primary-600" />
+                          <FiUser className="text-primary-600" />
                         </div>
                         <div>
                           <p className="font-medium text-gray-900">{user.fullName}</p>
@@ -197,11 +195,10 @@ const UsersManagePage = () => {
                       <div className="flex items-center space-x-2">
                         <button
                           onClick={() => toggleUserStatus(user._id, user.isActive)}
-                          className={`p-2 rounded-lg transition-colors ${
-                            user.isActive 
-                              ? 'text-red-600 hover:bg-red-50' 
+                          className={`p-2 rounded-lg transition-colors ${user.isActive
+                              ? 'text-red-600 hover:bg-red-50'
                               : 'text-green-600 hover:bg-green-50'
-                          }`}
+                            }`}
                           title={user.isActive ? 'Khóa tài khoản' : 'Mở khóa'}
                         >
                           {user.isActive ? <FiLock /> : <FiUnlock />}
@@ -257,7 +254,7 @@ const UsersManagePage = () => {
             <input
               type="text"
               value={newUser.fullName}
-              onChange={(e) => setNewUser({...newUser, fullName: e.target.value})}
+              onChange={(e) => setNewUser({ ...newUser, fullName: e.target.value })}
               className="input-field"
               placeholder="Nguyễn Văn A"
               required
@@ -272,7 +269,7 @@ const UsersManagePage = () => {
               <input
                 type="text"
                 value={newUser.username}
-                onChange={(e) => setNewUser({...newUser, username: e.target.value})}
+                onChange={(e) => setNewUser({ ...newUser, username: e.target.value })}
                 className="input-field"
                 placeholder="nongdan_a"
                 required
@@ -285,7 +282,7 @@ const UsersManagePage = () => {
               <input
                 type="password"
                 value={newUser.password}
-                onChange={(e) => setNewUser({...newUser, password: e.target.value})}
+                onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
                 className="input-field"
                 placeholder="••••••"
                 required
@@ -300,7 +297,7 @@ const UsersManagePage = () => {
             <input
               type="tel"
               value={newUser.phone}
-              onChange={(e) => setNewUser({...newUser, phone: e.target.value})}
+              onChange={(e) => setNewUser({ ...newUser, phone: e.target.value })}
               className="input-field"
               placeholder="0912345678"
             />
@@ -313,27 +310,29 @@ const UsersManagePage = () => {
             <input
               type="text"
               value={newUser.address}
-              onChange={(e) => setNewUser({...newUser, address: e.target.value})}
+              onChange={(e) => setNewUser({ ...newUser, address: e.target.value })}
               className="input-field"
               placeholder="Xã ABC, Kiến Xương, Thái Bình"
             />
           </div>
 
           <div className="flex space-x-3 pt-4">
-            <button
+            <Button
               type="button"
               onClick={() => setShowCreateModal(false)}
-              className="flex-1 btn-secondary"
+              variant="secondary"
+              className="flex-1"
             >
               Hủy
-            </button>
-            <button
+            </Button>
+            <Button
               type="submit"
-              disabled={creating}
-              className="flex-1 btn-primary disabled:opacity-50"
+              loading={creating}
+              variant="primary"
+              className="flex-1"
             >
-              {creating ? 'Đang tạo...' : 'Tạo tài khoản'}
-            </button>
+              Tạo tài khoản
+            </Button>
           </div>
         </form>
       </Modal>

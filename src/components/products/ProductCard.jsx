@@ -1,5 +1,7 @@
 import { Link } from 'react-router-dom';
 import { FiMapPin, FiPhone, FiEye, FiAward } from 'react-icons/fi';
+import { getImageUrl } from '../../utils/format';
+
 
 const ProductCard = ({ product }) => {
   const getCertificationColor = (cert) => {
@@ -24,7 +26,7 @@ const ProductCard = ({ product }) => {
         <div className="relative aspect-[4/3] rounded-xl overflow-hidden mb-4 bg-gray-100">
           {product.images && product.images.length > 0 ? (
             <img
-              src={product.images[0].startsWith('http') ? product.images[0] : `http://localhost:5000${product.images[0]}`}
+              src={getImageUrl(product.images[0])}
               alt={product.productName}
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
             />
@@ -33,7 +35,7 @@ const ProductCard = ({ product }) => {
               <span className="text-4xl">🌾</span>
             </div>
           )}
-          
+
           {/* Certification Badge */}
           {product.certification && product.certification !== 'Không có' && (
             <div className={`absolute top-3 left-3 px-2 py-1 rounded-lg text-xs font-semibold flex items-center space-x-1 ${getCertificationColor(product.certification)}`}>
@@ -41,7 +43,7 @@ const ProductCard = ({ product }) => {
               <span>{product.certification}</span>
             </div>
           )}
-          
+
           {/* Views */}
           <div className="absolute top-3 right-3 px-2 py-1 bg-black/50 text-white rounded-lg text-xs flex items-center space-x-1">
             <FiEye />
@@ -54,7 +56,7 @@ const ProductCard = ({ product }) => {
           <h3 className="font-semibold text-gray-900 group-hover:text-primary-600 transition-colors line-clamp-1">
             {product.productName}
           </h3>
-          
+
           <p className="text-sm text-gray-500 mt-1 line-clamp-2">
             {product.description || 'Nông sản chất lượng cao'}
           </p>

@@ -4,10 +4,11 @@ import {
   FiArrowLeft, FiMapPin, FiPhone, FiMail, FiCalendar,
   FiAward, FiEye, FiMessageCircle, FiShare2, FiHeart
 } from 'react-icons/fi';
-import { productAPI, contactAPI } from '../../services/api';
+import { productAPI } from '../../services/api';
 import Loading from '../../components/common/Loading';
-import Modal from '../../components/common/Modal';
-import ChatBot from '../../components/chat/ChatBot';
+import { getInitials, getImageUrl } from '../../utils/format';
+import Button from '../../components/common/Button';
+
 import toast from 'react-hot-toast';
 
 const ProductDetailPage = () => {
@@ -15,15 +16,6 @@ const ProductDetailPage = () => {
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState(0);
-  const [showContactModal, setShowContactModal] = useState(false);
-  const [contactForm, setContactForm] = useState({
-    customerName: '',
-    customerPhone: '',
-    customerEmail: '',
-    message: '',
-    quantity: 1
-  });
-  const [submitting, setSubmitting] = useState(false);
   const hasIncrementedView = useRef(false); // Flag to prevent double increment
 
   useEffect(() => {
@@ -55,34 +47,11 @@ const ProductDetailPage = () => {
     }
   };
 
-  const handleContactSubmit = async (e) => {
-    e.preventDefault();
-
-    if (!contactForm.customerName || !contactForm.customerPhone) {
-      toast.error('Vui lòng nhập họ tên và số điện thoại');
-      return;
-    }
-
+  const handleContactIntent = async (type) => {
     try {
-      setSubmitting(true);
-      await contactAPI.create({
-        productId: id,
-        ...contactForm
-      });
-      toast.success('Đã gửi yêu cầu liên hệ thành công!');
-      setShowContactModal(false);
-      setContactForm({
-        customerName: '',
-        customerPhone: '',
-        customerEmail: '',
-        message: '',
-        quantity: 1
-      });
+      await productAPI.trackInterest(product._id);
     } catch (error) {
-      console.error('Error submitting contact:', error);
-      toast.error('Có lỗi xảy ra, vui lòng thử lại');
-    } finally {
-      setSubmitting(false);
+      console.error('Error tracking interest', error);
     }
   };
 
@@ -117,9 +86,9 @@ const ProductDetailPage = () => {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-2xl font-bold text-gray-900 mb-4">Không tìm thấy sản phẩm</h2>
-          <Link to="/products" className="btn-primary">
+          <Button to="/products" variant="primary">
             Quay lại danh sách
-          </Link>
+          </Button>
         </div>
       </div>
     );
@@ -151,9 +120,7 @@ const ProductDetailPage = () => {
             <div className="aspect-square rounded-2xl overflow-hidden bg-gray-100">
               {product.images && product.images.length > 0 ? (
                 <img
-                  src={product.images[selectedImage]?.startsWith('http')
-                    ? product.images[selectedImage]
-                    : `http://localhost:5000${product.images[selectedImage]}`}
+                  src={getImageUrl(product.images[selectedImage])}
                   alt={product.productName}
                   className="w-full h-full object-cover"
                 />
@@ -177,7 +144,7 @@ const ProductDetailPage = () => {
                       }`}
                   >
                     <img
-                      src={img.startsWith('http') ? img : `http://localhost:5000${img}`}
+                      src={getImageUrl(img)}
                       alt=""
                       className="w-full h-full object-cover"
                     />
@@ -249,11 +216,11 @@ const ProductDetailPage = () => {
                   </div>
                 </div>
               )}
-              {product.quantity > 0 && (
+              {product.actualStock != null && product.actualStock > 0 && (
                 <div>
-                  <p className="text-sm text-gray-500">Số lượng còn</p>
+                  <p className="text-sm text-gray-500">Tồn kho</p>
                   <p className="font-medium text-gray-900">
-                    {product.quantity} {product.unit || 'kg'}
+                    {product.actualStock.toLocaleString()} {product.unit || 'kg'}
                   </p>
                 </div>
               )}
@@ -264,10 +231,14 @@ const ProductDetailPage = () => {
               <div className="card bg-gray-50">
                 <h3 className="font-semibold text-gray-900 mb-3">Thông tin người bán</h3>
                 <div className="flex items-start space-x-4">
-                  <div className="w-12 h-12 bg-primary-100 rounded-full flex items-center justify-center">
-                    <span className="text-primary-600 font-semibold text-lg">
-                      {product.farmerId.fullName?.charAt(0) || 'N'}
-                    </span>
+                  <div className="w-12 h-12 bg-primary-100 rounded-full flex items-center justify-center overflow-hidden shadow-inner">
+                    {product.farmerId.avatar ? (
+                      <img src={product.farmerId.avatar} alt="Avatar" className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-primary-600 font-semibold text-lg">
+                        {getInitials(product.farmerId.fullName)}
+                      </span>
+                    )}
                   </div>
                   <div className="flex-1">
                     <p className="font-semibold text-gray-900">{product.farmerId.fullName}</p>
@@ -288,13 +259,26 @@ const ProductDetailPage = () => {
 
             {/* Action Buttons */}
             <div className="flex space-x-4">
-              <button
-                onClick={() => setShowContactModal(true)}
-                className="flex-1 btn-primary flex items-center justify-center space-x-2"
+              <Button
+                href={`https://zalo.me/${product.farmerId?.phone?.replace(/^0/, '84') || ''}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => handleContactIntent('zalo')}
+                variant="primary"
+                icon={FiMessageCircle}
+                className="flex-[2] !bg-blue-500 hover:!bg-blue-600 border-none"
               >
-                <FiMessageCircle />
-                <span>Liên hệ mua hàng</span>
-              </button>
+                Chat Zalo
+              </Button>
+              <Button
+                href={`tel:${product.farmerId?.phone}`}
+                onClick={() => handleContactIntent('phone')}
+                variant="primary"
+                icon={FiPhone}
+                className="flex-[2] !bg-green-500 hover:!bg-green-600 border-none"
+              >
+                Gọi điện
+              </Button>
               <button className="p-3 bg-gray-100 text-gray-600 rounded-xl hover:bg-gray-200 transition-colors">
                 <FiHeart size={20} />
               </button>
@@ -333,102 +317,10 @@ const ProductDetailPage = () => {
         )}
       </div>
 
-      {/* Contact Modal */}
-      <Modal
-        isOpen={showContactModal}
-        onClose={() => setShowContactModal(false)}
-        title="Liên hệ mua hàng"
-        size="md"
-      >
-        <form onSubmit={handleContactSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Họ tên <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              value={contactForm.customerName}
-              onChange={(e) => setContactForm({ ...contactForm, customerName: e.target.value })}
-              className="input-field"
-              placeholder="Nhập họ tên của bạn"
-              required
-            />
-          </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Số điện thoại <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="tel"
-              value={contactForm.customerPhone}
-              onChange={(e) => setContactForm({ ...contactForm, customerPhone: e.target.value })}
-              className="input-field"
-              placeholder="Nhập số điện thoại"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Email
-            </label>
-            <input
-              type="email"
-              value={contactForm.customerEmail}
-              onChange={(e) => setContactForm({ ...contactForm, customerEmail: e.target.value })}
-              className="input-field"
-              placeholder="Nhập email (không bắt buộc)"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Số lượng muốn mua ({product?.unit || 'kg'})
-            </label>
-            <input
-              type="number"
-              min="1"
-              value={contactForm.quantity}
-              onChange={(e) => setContactForm({ ...contactForm, quantity: parseInt(e.target.value) })}
-              className="input-field"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Lời nhắn
-            </label>
-            <textarea
-              value={contactForm.message}
-              onChange={(e) => setContactForm({ ...contactForm, message: e.target.value })}
-              className="input-field"
-              rows={3}
-              placeholder="Nhập lời nhắn cho người bán..."
-            />
-          </div>
-
-          <div className="flex space-x-3 pt-4">
-            <button
-              type="button"
-              onClick={() => setShowContactModal(false)}
-              className="flex-1 btn-secondary"
-            >
-              Hủy
-            </button>
-            <button
-              type="submit"
-              disabled={submitting}
-              className="flex-1 btn-primary disabled:opacity-50"
-            >
-              {submitting ? 'Đang gửi...' : 'Gửi yêu cầu'}
-            </button>
-          </div>
-        </form>
-      </Modal>
 
       {/* Chatbot */}
-      <ChatBot chatType="public" />
+
     </div>
   );
 };

@@ -5,6 +5,7 @@ import { regionAPI } from '../../services/api';
 import toast from 'react-hot-toast';
 import area from '@turf/area';
 import { polygon } from '@turf/helpers';
+import Button from '../../components/common/Button';
 
 const CreateRegionPage = () => {
   const navigate = useNavigate();
@@ -220,13 +221,12 @@ const CreateRegionPage = () => {
                 className="input-field flex-1"
                 placeholder="Nhập tên cây trồng..."
               />
-              <button
+              <Button
                 type="button"
                 onClick={() => addCrop(newCrop)}
-                className="btn-secondary"
-              >
-                <FiPlus />
-              </button>
+                variant="secondary"
+                icon={FiPlus}
+              />
             </div>
 
             {/* Suggested crops */}
@@ -267,27 +267,23 @@ const CreateRegionPage = () => {
 
           {/* Submit */}
           <div className="flex space-x-4">
-            <button
+            <Button
               type="button"
               onClick={() => navigate(-1)}
-              className="flex-1 btn-secondary"
+              variant="secondary"
+              className="flex-1"
             >
               Hủy
-            </button>
-            <button
+            </Button>
+            <Button
               type="submit"
-              disabled={submitting}
-              className="flex-1 btn-primary flex items-center justify-center space-x-2 disabled:opacity-50"
+              loading={submitting}
+              variant="primary"
+              icon={FiSave}
+              className="flex-1"
             >
-              {submitting ? (
-                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <>
-                  <FiSave />
-                  <span>Tạo vùng quy hoạch</span>
-                </>
-              )}
-            </button>
+              Tạo vùng quy hoạch
+            </Button>
           </div>
         </form>
       </div>

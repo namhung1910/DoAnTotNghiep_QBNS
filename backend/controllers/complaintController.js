@@ -1,4 +1,6 @@
 import Complaint from '../models/Complaint.js';
+import Notification from '../models/Notification.js';
+import Farm from '../models/Farm.js';
 
 export const create = async (req, res) => {
     try {
@@ -51,6 +53,30 @@ export const resolve = async (req, res) => {
         complaint.status = status;
         complaint.response = response;
         await complaint.save();
+
+        let extraMsg = '';
+        if (status === 'resolved' && complaint.relatedFarm) {
+            const farm = await Farm.findById(complaint.relatedFarm);
+            if (farm) {
+                farm.ownerId = complaint.user; // Trả lại chủ sở hữu
+                farm.isActive = true; // Hủy trạng thái xóa nếu có
+                await farm.save();
+                extraMsg = ` Thửa đất "${farm.name}" của bạn đã được khôi phục thành công.`;
+            }
+        } else if (status === 'rejected' && complaint.relatedFarm) {
+            // Xóa cứng thửa đất khỏi cơ sở dữ liệu khi từ chối khiếu nại
+            await Farm.findByIdAndDelete(complaint.relatedFarm);
+        }
+
+        // Create a notification for the farmer
+        if (complaint.user) {
+            await Notification.create({
+                user: complaint.user,
+                message: `Khiếu nại của bạn về "${complaint.title}" đã được HTX trả lời: "${response}".${extraMsg}`,
+                type: status === 'resolved' ? 'approval' : 'system',
+                relatedId: complaint.relatedFarm
+            });
+        }
 
         res.json(complaint);
     } catch (error) {

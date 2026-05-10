@@ -41,9 +41,15 @@ export const authAPI = {
   login: (data) => api.post('/auth/login', data),
   register: (data) => api.post('/auth/register', data),
   getProfile: () => api.get('/auth/profile'),
-  updateProfile: (data) => api.put('/auth/profile', data),
+  updateProfile: (data) => {
+    const config = data instanceof FormData ? { headers: { 'Content-Type': 'multipart/form-data' } } : {};
+    return api.put('/auth/profile', data, config);
+  },
   getUsers: (params) => api.get('/auth/users', { params }),
   updateUserStatus: (id, data) => api.put(`/auth/users/${id}/status`, data),
+  changePassword: (data) => api.put('/auth/change-password', data),
+  changePhone: (data) => api.put('/auth/change-phone', data),
+  deleteAccount: (data) => api.delete('/auth/account', { data }),
 };
 
 // Region APIs
@@ -56,9 +62,15 @@ export const regionAPI = {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
   update: (id, data) => api.put(`/regions/${id}`, data),
+  rename: (id, name) => api.patch(`/regions/${id}/rename`, { name }),
   delete: (id) => api.delete(`/regions/${id}`),
   findByPoint: (lng, lat) => api.post('/regions/find-by-point', { lng, lat }),
+  getNextZoneCode: (zoneType) => api.get(`/regions/next-zone-code/${zoneType}`),
+  getDeleted: () => api.get('/regions/deleted'),
+  restore: (id) => api.put(`/regions/${id}/restore`),
+  hardDelete: (id) => api.delete(`/regions/${id}/hard`),
 };
+
 
 // Farm APIs
 export const farmAPI = {
@@ -69,9 +81,16 @@ export const farmAPI = {
   create: (data) => api.post('/farms', data),
   update: (id, data) => api.put(`/farms/${id}`, data),
   updateSeason: (id, data) => api.put(`/farms/${id}/season`, data),
+  startNewSeason: (id, data) => api.put(`/farms/${id}/new-season`, data),
+  adjustInventory: (id, data) => api.post(`/farms/${id}/inventory-adjustment`, data),
+  getStockHistory: (id) => api.get(`/farms/${id}/stock-history`),
   delete: (id) => api.delete(`/farms/${id}`),
   revoke: (id, data) => api.put(`/farms/${id}/revoke`, data),
+  getMyHarvestHistory: (params) => api.get('/farms/user/my-harvest-history', { params }),
   getStatistics: () => api.get('/farms/admin/statistics'),
+  // Duyệt/từ chối thửa đất do farmer tạo (Admin)
+  approve: (id, data) => api.put(`/farms/${id}/approve`, data),
+  reject: (id, data) => api.put(`/farms/${id}/reject`, data),
 };
 
 // Product APIs
@@ -89,23 +108,20 @@ export const productAPI = {
   delete: (id) => api.delete(`/products/${id}`),
   getPending: (params) => api.get('/products/admin/pending', { params }),
   review: (id, data) => api.put(`/products/${id}/review`, data),
+  // Mới thêm cho tracking và bán hàng
+  trackInterest: (id) => api.post(`/products/${id}/track-interest`),
+  recordSale: (id, data) => api.post(`/products/${id}/record-sale`, data),
 };
 
 // Chat APIs
 export const chatAPI = {
   sendMessage: (data) => api.post('/chat/message', data),
-  getHistory: (sessionId) => api.get(`/chat/history/${sessionId}`),
+  getHistory: (sessionId, params) => api.get(`/chat/history/${sessionId}`, { params }),
+  getMySession: (params) => api.get('/chat/my-session', { params }), // Lấy session gần nhất khi đăng nhập
   clearHistory: (sessionId) => api.delete(`/chat/history/${sessionId}`),
 };
 
-// CropType APIs
-export const cropTypeAPI = {
-  getAll: (params) => api.get('/crop-types', { params }),
-  getById: (id) => api.get(`/crop-types/${id}`),
-  create: (data) => api.post('/crop-types', data),
-  update: (id, data) => api.put(`/crop-types/${id}`, data),
-  delete: (id) => api.delete(`/crop-types/${id}`),
-};
+
 
 // Contact APIs
 export const contactAPI = {
@@ -120,8 +136,10 @@ export const statisticsAPI = {
   getPublicStats: () => api.get('/statistics/public'),
   getOverview: () => api.get('/statistics/overview'),
   getHarvestForecast: (params) => api.get('/statistics/harvest-forecast', { params }),
+  getHarvestSummary: () => api.get('/statistics/harvest-summary'),
   getByRegion: () => api.get('/statistics/by-region'),
   getProductsByCertification: () => api.get('/statistics/products-by-certification'),
+  getHistoricalHarvests: (params) => api.get('/statistics/historical-harvests', { params }),
 };
 
 // Policy APIs
@@ -135,6 +153,7 @@ export const policyAPI = {
 
 // Land Request APIs
 export const landRequestAPI = {
+  // data có thể gồm: purpose, commitment, farmGeometry, farmName, cropType, requestedArea, regionId
   create: (data) => api.post('/land-requests', data),
   getMyRequest: () => api.get('/land-requests/my-request'),
   getAll: (params) => api.get('/land-requests', { params }),
@@ -153,6 +172,11 @@ export const complaintAPI = {
   getMyComplaints: () => api.get('/complaints/my-complaints'),
   getAll: () => api.get('/complaints'),
   resolve: (id, data) => api.put(`/complaints/${id}/resolve`, data),
+};
+
+// Weather API (chỉ farmer & admin)
+export const weatherAPI = {
+  getWeather: () => api.get('/weather'),
 };
 
 export default api;

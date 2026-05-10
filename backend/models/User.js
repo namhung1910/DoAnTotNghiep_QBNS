@@ -39,6 +39,11 @@ const userSchema = new mongoose.Schema({
   isActive: {
     type: Boolean,
     default: true
+  },
+  // Mã định danh nông dân: ND001, ND002, ... (chỉ có với role farmer)
+  // KHÔNG đặt default — để sparse index chỉ enforce với document có field này
+  farmerCode: {
+    type: String
   }
 }, {
   timestamps: true
@@ -58,6 +63,10 @@ userSchema.pre('save', async function(next) {
 userSchema.methods.matchPassword = async function(enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
+
+// sparse: true → index chỉ áp dụng với doc có field farmerCode
+// → Admin (không có farmerCode) không bị check unique, không conflict
+userSchema.index({ farmerCode: 1 }, { unique: true, sparse: true });
 
 const User = mongoose.model('User', userSchema);
 export default User;

@@ -4,22 +4,19 @@ import User from '../models/User.js';
 // Create a new land request
 export const create = async (req, res) => {
     try {
-        const { purpose, commitment } = req.body;
-
-        // Check if user already has a pending request
-        const existingRequest = await LandRequest.findOne({
-            user: req.user._id,
-            status: 'pending'
-        });
-
-        if (existingRequest) {
-            return res.status(400).json({ message: 'Bạn đang có một yêu cầu chờ duyệt.' });
-        }
+        const {
+            purpose, commitment,
+            cropType, requestedArea, regionId, farmId
+        } = req.body;
 
         const request = new LandRequest({
             user: req.user._id,
             purpose,
-            commitment
+            commitment,
+            cropType: cropType || '',
+            requestedArea: requestedArea || 0,
+            regionId: regionId || null,
+            assignedFarm: farmId || null,
         });
 
         await request.save();

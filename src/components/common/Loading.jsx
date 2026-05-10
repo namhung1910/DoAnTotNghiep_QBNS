@@ -1,11 +1,10 @@
-import { GiWheat } from 'react-icons/gi';
 
 const Loading = ({ fullScreen = true, message = 'Đang tải...' }) => {
   const content = (
     <div className="flex flex-col items-center justify-center space-y-4">
       <div className="relative">
-        <div className="w-16 h-16 bg-gradient-to-br from-primary-500 to-primary-700 rounded-2xl flex items-center justify-center animate-pulse">
-          <GiWheat className="text-white text-3xl" />
+        <div className="w-16 h-16 rounded-2xl flex items-center justify-center animate-pulse overflow-hidden">
+          <img src="/assets/LogoFarmmate4u.webp" alt="Farmmate4U" className="w-full h-full object-contain" />
         </div>
         <div className="absolute -inset-2 bg-primary-500/20 rounded-3xl animate-ping" />
       </div>

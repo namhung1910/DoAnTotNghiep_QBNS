@@ -1,5 +1,12 @@
 import mongoose from 'mongoose';
 
+// Các loại phân vùng chuẩn
+export const ZONE_TYPES = [
+  { label: 'Vùng cây lương thực', value: 'VLT' },
+  { label: 'Vùng cây công nghiệp', value: 'VCN' },
+  { label: 'Vùng cây ăn quả & rau màu', value: 'VAR' },
+];
+
 const regionSchema = new mongoose.Schema({
   name: {
     type: String,
@@ -10,13 +17,21 @@ const regionSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
+  // Phân loại vùng chuẩn (VLT / VCN / VAR)
+  zoneType: {
+    type: String,
+    enum: ['VLT', 'VCN', 'VAR', ''],
+    default: ''
+  },
+  // Mã vùng tự động (VD: VLT-01)
+  zoneCode: {
+    type: String,
+    default: ''
+  },
   soilType: {
     type: String,
     default: 'Phù sa'
   },
-  plannedCrops: [{
-    type: String
-  }],
   totalArea: {
     type: Number,
     default: 0
@@ -53,4 +68,3 @@ regionSchema.index({ geometry: '2dsphere' });
 
 const Region = mongoose.model('Region', regionSchema);
 export default Region;
-

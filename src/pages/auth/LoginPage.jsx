@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FiUser, FiLock, FiEye, FiEyeOff, FiLogIn } from 'react-icons/fi';
-import { GiWheat } from 'react-icons/gi';
 import { useAuth } from '../../context/AuthContext';
+import Button from '../../components/common/Button';
 
 const LoginPage = () => {
   const [formData, setFormData] = useState({
@@ -52,12 +52,13 @@ const LoginPage = () => {
         {/* Logo */}
         <div className="text-center mb-8">
           <Link to="/" className="inline-flex items-center space-x-2">
-            <div className="w-12 h-12 bg-gradient-to-br from-primary-500 to-primary-700 rounded-xl flex items-center justify-center">
-              <GiWheat className="text-white text-2xl" />
-            </div>
+            <img
+              src="/assets/LogoFarmmate4u.webp"
+              alt="Farmmate4U Logo"
+              className="w-12 h-12 object-contain"
+            />
             <div className="text-left">
-              <h1 className="font-display font-bold text-xl text-gray-900">NôngSản</h1>
-              <p className="text-xs text-gray-500">Việt Nam</p>
+              <h1 className="font-display font-bold text-xl text-gray-900">Farmmate<span className="text-primary-500">4U</span></h1>
             </div>
           </Link>
         </div>
@@ -127,20 +128,14 @@ const LoginPage = () => {
             </div>
 
             {/* Submit */}
-            <button
+            <Button
               type="submit"
-              disabled={loading}
-              className="w-full btn-primary flex items-center justify-center space-x-2 py-3"
+              loading={loading}
+              icon={FiLogIn}
+              className="w-full py-3"
             >
-              {loading ? (
-                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <>
-                  <FiLogIn />
-                  <span>Đăng nhập</span>
-                </>
-              )}
-            </button>
+              Đăng nhập
+            </Button>
           </form>
 
           {/* Register Link */}
@@ -151,20 +146,6 @@ const LoginPage = () => {
             </Link>
           </div>
 
-          {/* Demo accounts */}
-          <div className="mt-8 pt-6 border-t border-gray-100">
-            <p className="text-sm text-gray-500 text-center mb-4">Tài khoản demo:</p>
-            <div className="grid grid-cols-2 gap-3 text-sm">
-              <div className="bg-gray-50 rounded-xl p-3">
-                <p className="font-medium text-gray-900">Admin HTX</p>
-                <p className="text-gray-500">admin_htx</p>
-              </div>
-              <div className="bg-gray-50 rounded-xl p-3">
-                <p className="font-medium text-gray-900">Nông dân</p>
-                <p className="text-gray-500">nongdan_hung</p>
-              </div>
-            </div>
-          </div>
         </div>
 
         {/* Back to home */}

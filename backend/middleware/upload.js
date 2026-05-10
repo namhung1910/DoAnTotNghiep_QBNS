@@ -1,42 +1,4 @@
 import multer from 'multer';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import fs from 'fs';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// Tạo thư mục uploads nếu chưa tồn tại
-const uploadsDir = path.join(__dirname, '../uploads');
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
-}
-
-// Cấu hình storage
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    let folder = 'others';
-    
-    if (file.fieldname === 'productImages') {
-      folder = 'products';
-    } else if (file.fieldname === 'avatar') {
-      folder = 'avatars';
-    } else if (file.fieldname === 'geojson') {
-      folder = 'geojson';
-    }
-    
-    const destPath = path.join(uploadsDir, folder);
-    if (!fs.existsSync(destPath)) {
-      fs.mkdirSync(destPath, { recursive: true });
-    }
-    
-    cb(null, destPath);
-  },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, uniqueSuffix + path.extname(file.originalname));
-  }
-});
 
 // Filter file
 const fileFilter = (req, file, cb) => {
@@ -57,11 +19,12 @@ const fileFilter = (req, file, cb) => {
   }
 };
 
-export const upload = multer({
-  storage: storage,
+// Sử dụng memoryStorage cho mọi file upload (xử lý Sharp/Cloudinary trên RAM)
+const memoryStorage = multer.memoryStorage();
+export const uploadMemory = multer({
+  storage: memoryStorage,
   fileFilter: fileFilter,
   limits: {
     fileSize: 10 * 1024 * 1024 // 10MB
   }
 });
-

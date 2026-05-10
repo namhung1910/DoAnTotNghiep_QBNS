@@ -4,6 +4,7 @@ import { FiArrowLeft, FiSave, FiMap, FiUser } from 'react-icons/fi';
 import { farmAPI, authAPI, regionAPI } from '../../services/api';
 import Loading from '../../components/common/Loading';
 import toast from 'react-hot-toast';
+import Button from '../../components/common/Button';
 
 const AssignFarmPage = () => {
   const navigate = useNavigate();
@@ -15,7 +16,7 @@ const AssignFarmPage = () => {
   const [formData, setFormData] = useState({
     ownerId: '',
     regionId: '',
-    name: '',
+    // name đã bỏ — backend tự sinh từ farmerCode + zoneCode
     cropType: '',
     area: '',
     status: 'planning',
@@ -89,9 +90,14 @@ const AssignFarmPage = () => {
     try {
       setSubmitting(true);
       await farmAPI.create({
-        ...formData,
-        area: parseFloat(formData.area),
+        ownerId:      formData.ownerId,
+        regionId:     formData.regionId,
+        cropType:     formData.cropType,
+        area:         parseFloat(formData.area),
+        status:       formData.status,
+        planningData: formData.planningData,
         geometry
+        // name đã bỏ — backend tự sinh: farmerCode (từ ownerId) + zoneCode (từ regionId)
       });
       toast.success('Đã giao đất thành công!');
       navigate('/admin/farms');
@@ -263,27 +269,24 @@ const AssignFarmPage = () => {
 
           {/* Submit */}
           <div className="flex space-x-4">
-            <button
+            <Button
               type="button"
               onClick={() => navigate(-1)}
-              className="flex-1 btn-secondary"
+              variant="secondary"
+              className="flex-1"
             >
               Hủy
-            </button>
-            <button
+            </Button>
+            <Button
               type="submit"
-              disabled={submitting || farmers.length === 0}
-              className="flex-1 btn-primary flex items-center justify-center space-x-2 disabled:opacity-50"
+              disabled={farmers.length === 0}
+              loading={submitting}
+              variant="primary"
+              icon={FiSave}
+              className="flex-1"
             >
-              {submitting ? (
-                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <>
-                  <FiSave />
-                  <span>Giao đất</span>
-                </>
-              )}
-            </button>
+              Giao đất
+            </Button>
           </div>
         </form>
       </div>

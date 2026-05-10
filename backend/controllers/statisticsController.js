@@ -1,8 +1,8 @@
 import Farm from '../models/Farm.js';
 import Product from '../models/Product.js';
 import User from '../models/User.js';
-import ContactRequest from '../models/ContactRequest.js';
 import Region from '../models/Region.js';
+import HarvestRecord from '../models/HarvestRecord.js';
 
 // @desc    Lấy thống kê tổng quan (Admin Dashboard)
 // @route   GET /api/statistics/overview
@@ -31,9 +31,12 @@ export const getOverviewStatistics = async (req, res) => {
     const totalProducts = await Product.countDocuments({ status: 'approved' });
     const pendingProducts = await Product.countDocuments({ status: 'pending' });
 
-    // Thống kê liên hệ
-    const totalContacts = await ContactRequest.countDocuments();
-    const newContacts = await ContactRequest.countDocuments({ status: 'new' });
+    // Thống kê liên hệ (Contact intent)
+    const contactStats = await Product.aggregate([
+      { $group: { _id: null, totalContacts: { $sum: '$contactCount' } } }
+    ]);
+    const totalContacts = contactStats[0]?.totalContacts || 0;
+    const newContacts = 0; // Không còn khái niệm "new" vì không lưu record riêng nữa
 
     // Thống kê theo trạng thái mùa vụ
     const farmsByStatus = await Farm.aggregate([
@@ -46,6 +49,13 @@ export const getOverviewStatistics = async (req, res) => {
         }
       }
     ]);
+
+    // Tổng sản lượng toàn hệ thống
+    const totalYieldStats = await Farm.aggregate([
+      { $match: { isActive: true } },
+      { $group: { _id: null, totalYield: { $sum: '$cumulativeYieldKg' } } }
+    ]);
+    const totalYield = totalYieldStats[0]?.totalYield || 0;
 
     // Thống kê theo loại cây trồng
     const farmsByCrop = await Farm.aggregate([
@@ -73,6 +83,7 @@ export const getOverviewStatistics = async (req, res) => {
       farms: {
         total: totalFarms,
         totalArea: totalFarmArea[0]?.total || 0,
+        totalYield: totalYield,
         byStatus: farmsByStatus,
         byCrop: farmsByCrop
       },
@@ -116,7 +127,8 @@ export const getHarvestForecast = async (req, res) => {
             cropType: '$cropType'
           },
           count: { $sum: 1 },
-          totalArea: { $sum: '$area' }
+          totalArea: { $sum: '$area' },
+          expectedYield: { $sum: '$expectedYield' }
         }
       },
       { $sort: { '_id.year': 1, '_id.month': 1 } }
@@ -151,10 +163,11 @@ export const getStatisticsByRegion = async (req, res) => {
           regionName: { $first: '$region.name' },
           farmCount: { $sum: 1 },
           totalArea: { $sum: '$area' },
+          totalYield: { $sum: '$cumulativeYieldKg' },
           crops: { $addToSet: '$cropType' }
         }
       },
-      { $sort: { totalArea: -1 } }
+      { $sort: { totalYield: -1, totalArea: -1 } }
     ]);
 
     res.json(regionStats);
@@ -221,6 +234,176 @@ export const getPublicStatistics = async (req, res) => {
       farmers: totalFarmers,
       certifiedProducts: certifiedProducts
     });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+};
+
+// @desc    Thống kê sản lượng thu hoạch (Admin)
+// @route   GET /api/statistics/harvest-summary
+// @access  Private/Admin
+export const getHarvestSummary = async (req, res) => {
+  try {
+    // Tổng sản lượng đã thu hoạch (đơn vị chuẩn: kg)
+    const totalYield = await Farm.aggregate([
+      { $match: { isActive: true, status: 'harvested' } },
+      { $group: { _id: null, totalKg: { $sum: '$yieldInKg' }, count: { $sum: 1 } } }
+    ]);
+
+    // Sản lượng theo loại cây trồng (top 10)
+    const yieldByCrop = await Farm.aggregate([
+      { $match: { isActive: true, status: 'harvested', yieldInKg: { $gt: 0 } } },
+      {
+        $group: {
+          _id: '$cropType',
+          totalKg: { $sum: '$yieldInKg' },
+          count: { $sum: 1 },
+          avgYieldPerArea: { $avg: { $cond: [{ $gt: ['$area', 0] }, { $divide: ['$yieldInKg', '$area'] }, 0] } }
+        }
+      },
+      { $sort: { totalKg: -1 } },
+      { $limit: 10 }
+    ]);
+
+    // Sản lượng theo vùng quy hoạch
+    const yieldByRegion = await Farm.aggregate([
+      { $match: { isActive: true, status: 'harvested', yieldInKg: { $gt: 0 } } },
+      {
+        $lookup: {
+          from: 'regions',
+          localField: 'regionId',
+          foreignField: '_id',
+          as: 'region'
+        }
+      },
+      { $unwind: { path: '$region', preserveNullAndEmpty: true } },
+      {
+        $group: {
+          _id: '$region.name',
+          totalKg: { $sum: '$yieldInKg' },
+          count: { $sum: 1 }
+        }
+      },
+      { $sort: { totalKg: -1 } }
+    ]);
+
+    // Số thửa đất đã thu hoạch nhưng chưa nhập sản lượng (cảnh báo)
+    const missingYieldCount = await Farm.countDocuments({
+      isActive: true,
+      status: 'harvested',
+      $or: [{ yieldInKg: 0 }, { yieldInKg: null }]
+    });
+
+    // Tổng sản lượng theo tháng (12 tháng gần nhất)
+    const yieldByMonth = await Farm.aggregate([
+      {
+        $match: {
+          isActive: true,
+          status: 'harvested',
+          actualHarvestDate: { $gte: new Date(new Date().setFullYear(new Date().getFullYear() - 1)) }
+        }
+      },
+      {
+        $group: {
+          _id: {
+            year: { $year: '$actualHarvestDate' },
+            month: { $month: '$actualHarvestDate' }
+          },
+          totalKg: { $sum: '$yieldInKg' },
+          count: { $sum: 1 }
+        }
+      },
+      { $sort: { '_id.year': 1, '_id.month': 1 } }
+    ]);
+
+    res.json({
+      totalYieldKg: totalYield[0]?.totalKg || 0,
+      totalHarvestedFarms: totalYield[0]?.count || 0,
+      missingYieldCount,
+      yieldByCrop,
+      yieldByRegion,
+      yieldByMonth
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+};
+
+// @desc    Lấy thống kê lịch sử thu hoạch (dành cho Admin vẽ biểu đồ)
+// @route   GET /api/statistics/historical-harvests
+// @access  Private/Admin
+export const getHistoricalHarvests = async (req, res) => {
+  try {
+    const { groupBy = 'month', year } = req.query;
+    
+    let matchQuery = {};
+    if (year) {
+      const yearStart = new Date(`${year}-01-01T00:00:00Z`);
+      const yearEnd = new Date(`${year}-12-31T23:59:59Z`);
+      matchQuery.harvestDate = { $gte: yearStart, $lte: yearEnd };
+    }
+
+    let groupStage = {};
+    let sortStage = {};
+
+    if (groupBy === 'year') {
+      groupStage = {
+        _id: { year: { $year: '$harvestDate' } },
+        totalYield: { $sum: '$yieldInKg' },
+        totalRecords: { $sum: 1 }
+      };
+      sortStage = { '_id.year': 1 };
+    } else if (groupBy === 'region') {
+      groupStage = {
+        _id: '$regionId',
+        totalYield: { $sum: '$yieldInKg' },
+        totalRecords: { $sum: 1 }
+      };
+    } else {
+      groupStage = {
+        _id: { 
+          month: { $month: '$harvestDate' }, 
+          year: { $year: '$harvestDate' } 
+        },
+        totalYield: { $sum: '$yieldInKg' },
+        totalRecords: { $sum: 1 }
+      };
+      sortStage = { '_id.year': 1, '_id.month': 1 };
+    }
+
+    const pipeline = [
+      { $match: matchQuery },
+      { $group: groupStage },
+    ];
+
+    if (groupBy === 'region') {
+      pipeline.push(
+        {
+          $lookup: {
+            from: 'regions',
+            localField: '_id',
+            foreignField: '_id',
+            as: 'region'
+          }
+        },
+        { $unwind: { path: '$region', preserveNullAndEmptyArrays: true } },
+        { 
+          $project: {
+            regionName: '$region.name',
+            totalYield: 1,
+            totalRecords: 1
+          }
+        },
+        { $sort: { totalYield: -1 } }
+      );
+    } else {
+      pipeline.push({ $sort: sortStage });
+    }
+
+    const stats = await HarvestRecord.aggregate(pipeline);
+    res.json(stats);
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Lỗi server', error: error.message });

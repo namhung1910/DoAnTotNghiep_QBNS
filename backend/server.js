@@ -11,13 +11,13 @@ import regionRoutes from './routes/regionRoutes.js';
 import farmRoutes from './routes/farmRoutes.js';
 import productRoutes from './routes/productRoutes.js';
 import chatRoutes from './routes/chatRoutes.js';
-import cropTypeRoutes from './routes/cropTypeRoutes.js';
-import contactRoutes from './routes/contactRoutes.js';
+
 import statisticsRoutes from './routes/statisticsRoutes.js';
 import policyRoutes from './routes/policyRoutes.js';
 import landRequestRoutes from './routes/landRequestRoutes.js';
 import notificationRoutes from './routes/notificationRoutes.js';
 import complaintRoutes from './routes/complaintRoutes.js';
+import weatherRoutes from './routes/weatherRoutes.js';
 
 // Load env vars
 dotenv.config();
@@ -48,13 +48,13 @@ app.use('/api/regions', regionRoutes);
 app.use('/api/farms', farmRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/chat', chatRoutes);
-app.use('/api/crop-types', cropTypeRoutes);
-app.use('/api/contacts', contactRoutes);
+
 app.use('/api/statistics', statisticsRoutes);
 app.use('/api/policies', policyRoutes);
 app.use('/api/land-requests', landRequestRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/complaints', complaintRoutes);
+app.use('/api/weather', weatherRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

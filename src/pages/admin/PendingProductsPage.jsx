@@ -4,6 +4,8 @@ import { productAPI } from '../../services/api';
 import Loading from '../../components/common/Loading';
 import Modal from '../../components/common/Modal';
 import toast from 'react-hot-toast';
+import { getImageUrl } from '../../utils/format';
+import Button from '../../components/common/Button';
 
 const PendingProductsPage = () => {
   const [products, setProducts] = useState([]);
@@ -46,12 +48,12 @@ const PendingProductsPage = () => {
 
   const handleReject = async () => {
     if (!selectedProduct) return;
-    
+
     try {
       setProcessing(true);
-      await productAPI.review(selectedProduct._id, { 
+      await productAPI.review(selectedProduct._id, {
         status: 'rejected',
-        rejectionReason: rejectReason 
+        rejectionReason: rejectReason
       });
       toast.success('Đã từ chối sản phẩm');
       setShowRejectModal(false);
@@ -90,8 +92,8 @@ const PendingProductsPage = () => {
                 {/* Image */}
                 <div className="w-32 h-32 bg-gray-100 rounded-xl overflow-hidden flex-shrink-0">
                   {product.images?.[0] ? (
-                    <img 
-                      src={product.images[0].startsWith('http') ? product.images[0] : `http://localhost:5000${product.images[0]}`}
+                    <img
+                      src={getImageUrl(product.images[0])}
                       alt=""
                       className="w-full h-full object-cover"
                     />
@@ -104,7 +106,7 @@ const PendingProductsPage = () => {
                 <div className="flex-1 min-w-0">
                   <h3 className="font-semibold text-gray-900 mb-1">{product.productName}</h3>
                   <p className="text-sm text-gray-500 mb-2">{product.category}</p>
-                  
+
                   <div className="space-y-1 text-sm">
                     <p className="text-primary-600 font-semibold">
                       {product.price?.toLocaleString()}đ/{product.unit}
@@ -126,29 +128,32 @@ const PendingProductsPage = () => {
 
               {/* Actions */}
               <div className="flex items-center space-x-3 mt-4 pt-4 border-t border-gray-100">
-                <button
+                <Button
                   onClick={() => setSelectedProduct(product)}
-                  className="flex-1 btn-secondary flex items-center justify-center space-x-1"
+                  variant="secondary"
+                  icon={FiEye}
+                  className="flex-1"
                 >
-                  <FiEye />
-                  <span>Chi tiết</span>
-                </button>
-                <button
+                  Chi tiết
+                </Button>
+                <Button
                   onClick={() => openRejectModal(product)}
                   disabled={processing}
-                  className="px-4 py-2 bg-red-100 text-red-600 rounded-xl hover:bg-red-200 transition-colors flex items-center space-x-1"
+                  variant="secondary"
+                  icon={FiX}
+                  className="flex-1 !bg-red-100 !text-red-600 !border-red-100 hover:!bg-red-200"
                 >
-                  <FiX />
-                  <span>Từ chối</span>
-                </button>
-                <button
+                  Từ chối
+                </Button>
+                <Button
                   onClick={() => handleApprove(product._id)}
-                  disabled={processing}
-                  className="px-4 py-2 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors flex items-center space-x-1"
+                  loading={processing}
+                  variant="primary"
+                  icon={FiCheck}
+                  className="flex-1 !bg-green-600 hover:!bg-green-700 !border-green-600"
                 >
-                  <FiCheck />
-                  <span>Duyệt</span>
-                </button>
+                  Duyệt
+                </Button>
               </div>
             </div>
           ))}
@@ -176,7 +181,7 @@ const PendingProductsPage = () => {
                 {selectedProduct.images.map((img, idx) => (
                   <img
                     key={idx}
-                    src={img.startsWith('http') ? img : `http://localhost:5000${img}`}
+                    src={getImageUrl(img)}
                     alt=""
                     className="w-24 h-24 object-cover rounded-lg flex-shrink-0"
                   />
@@ -226,18 +231,20 @@ const PendingProductsPage = () => {
             )}
 
             <div className="flex space-x-3 pt-4 border-t">
-              <button
+              <Button
                 onClick={() => openRejectModal(selectedProduct)}
-                className="flex-1 px-4 py-2 bg-red-100 text-red-600 rounded-xl hover:bg-red-200"
+                variant="secondary"
+                className="flex-1 !bg-red-100 !text-red-600 !border-red-100 hover:!bg-red-200"
               >
                 Từ chối
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={() => { handleApprove(selectedProduct._id); setSelectedProduct(null); }}
-                className="flex-1 btn-primary"
+                variant="primary"
+                className="flex-1"
               >
                 Duyệt sản phẩm
-              </button>
+              </Button>
             </div>
           </div>
         )}
@@ -254,7 +261,7 @@ const PendingProductsPage = () => {
           <p className="text-gray-600">
             Bạn sắp từ chối sản phẩm: <strong>{selectedProduct?.productName}</strong>
           </p>
-          
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Lý do từ chối
@@ -269,19 +276,21 @@ const PendingProductsPage = () => {
           </div>
 
           <div className="flex space-x-3">
-            <button
+            <Button
               onClick={() => { setShowRejectModal(false); setRejectReason(''); }}
-              className="flex-1 btn-secondary"
+              variant="secondary"
+              className="flex-1"
             >
               Hủy
-            </button>
-            <button
+            </Button>
+            <Button
               onClick={handleReject}
-              disabled={processing}
-              className="flex-1 px-4 py-2 bg-red-600 text-white rounded-xl hover:bg-red-700 disabled:opacity-50"
+              loading={processing}
+              variant="danger"
+              className="flex-1"
             >
-              {processing ? 'Đang xử lý...' : 'Xác nhận từ chối'}
-            </button>
+              Xác nhận từ chối
+            </Button>
           </div>
         </div>
       </Modal>
