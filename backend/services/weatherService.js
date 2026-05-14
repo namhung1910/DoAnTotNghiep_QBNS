@@ -49,10 +49,24 @@ function computeCentroid(geometries) {
 export async function resolveCoordinates(role, userId) {
     try {
         if (role === 'farmer' && userId) {
-            const farms = await Farm.find({ ownerId: userId, isActive: true }).select('geometry').lean();
+            // Lấy thêm cropType, plantingDate, status để xây dựng ngữ cảnh cây trồng cho RAG
+            const farms = await Farm.find({ ownerId: userId, isActive: true })
+                .select('geometry cropType status name plantingDate')
+                .lean();
             if (farms.length > 0) {
                 const centroid = computeCentroid(farms.map(f => f.geometry));
-                if (centroid) return centroid;
+
+                // Tổng hợp cây đang canh tác (loại harvested/cancelled — những thửa này không cần tư vấn thời tiết)
+                const activeCrops = farms
+                    .filter(f => ['planting', 'growing', 'harvesting'].includes(f.status))
+                    .map(f => ({
+                        name:         f.name,
+                        cropType:     f.cropType,
+                        status:       f.status,
+                        plantingDate: f.plantingDate || null,
+                    }));
+
+                if (centroid) return { ...centroid, activeCrops };
             }
         }
 
@@ -60,7 +74,7 @@ export async function resolveCoordinates(role, userId) {
             const regions = await Region.find({ isActive: true }).select('geometry').lean();
             if (regions.length > 0) {
                 const centroid = computeCentroid(regions.map(r => r.geometry));
-                if (centroid) return centroid;
+                if (centroid) return { ...centroid, activeCrops: [] };
             }
         }
     } catch (err) {
@@ -70,7 +84,7 @@ export async function resolveCoordinates(role, userId) {
     // Fallback .env
     const lat = parseFloat(process.env.WEATHER_LAT || '10.98');
     const lon = parseFloat(process.env.WEATHER_LON || '106.65');
-    return { lat, lon };
+    return { lat, lon, activeCrops: [] };
 }
 
 // ─── Open Meteo Call ─────────────────────────────────────────────────────────
@@ -340,7 +354,7 @@ function getWeatherState(isDay, precip, radiation, humidity) {
  * @returns {{ weatherWidget: object, weatherSummary: string }}
  */
 export async function getWeatherData(role, userId = null) {
-    const { lat, lon } = await resolveCoordinates(role, userId);
+    const { lat, lon, activeCrops = [] } = await resolveCoordinates(role, userId);
 
     // Cache theo toạ độ làm tròn 2 chữ số (~1.1km) — nhiều farmer cùng vùng sử dụng chung 1 cầu trả lời
     const latKey = lat.toFixed(2);
@@ -443,7 +457,21 @@ export async function getWeatherData(role, userId = null) {
         return `  ${label} (${d.date}): Min ${d.minTempC}°C / Max ${d.maxTempC}°C | Tổng mưa ${d.totalPrecipMm}mm | Gió max ${d.maxWindKmh}km/h | ET0 ${et0Context(d.totalEt0Mm)} | Độ ẩm đất: ${soilContext(d.avgSoilMoisture07)} | VPD TB ${d.avgVpd != null ? d.avgVpd + ' kPa' : 'N/A'}\n  Các mốc giờ quan trọng:\n${slotLines || '    (không có dữ liệu mốc giờ)'}`;
     }).join('\n');
 
+    // Xây dựng ngữ cảnh cây trồng — tính số ngày đã trồng để Dewy suy luận giai đoạn sinh trưởng
+    const cropContextLines = activeCrops.length > 0
+        ? activeCrops.map(c => {
+            const daysSincePlanting = c.plantingDate
+                ? Math.floor((Date.now() - new Date(c.plantingDate)) / 86400000)
+                : null;
+            return `- ${c.name}: ${c.cropType} | Giai đoạn: ${c.status}` +
+                   (daysSincePlanting !== null ? ` | Đã trồng ${daysSincePlanting} ngày` : ' | Ngày trồng chưa ghi nhận');
+        }).join('\n')
+        : '- Không có thửa đất đang canh tác';
+
     const weatherSummary = `=== DỮ LIỆU THỜI TIẾT KHU VỰC HTX (Toạ độ: ${r(lat, 4)}, ${r(lon, 4)}) ===
+
+[CÂY TRỒNG HIỆN TẠI]
+${cropContextLines}
 
 [QUÁ KHỨ 2 NGÀY]
 - Tổng lượng mưa tích lũy: ${pastSummary?.totalPrecipMm ?? 'N/A'} mm${(pastSummary?.totalPrecipMm ?? 0) < 5 ? ' — ít mưa, đất có xu hướng khô dần' : ' — đủ ẩm'}
@@ -466,12 +494,16 @@ export async function getWeatherData(role, userId = null) {
 [DỰ BÁO 3 NGÀY TỚI]
 ${forecastLines}
 
-[Ghi chú cho Dewy]
+[Ghi chú cho Dewy — ƯU TIÊN CAO khi tư vấn canh tác]
 Hãy dùng các số liệu trên để phân tích VÀ GIẢI THÍCH cụ thể tại sao nên/không nên thực hiện hoạt động được hỏi.
 Đừng chỉ nêu kết quả — hãy giải thích cơ chế: VD "VPD 3.2 kPa nghĩa là cây đang thoát hơi rất mạnh, kết hợp với đất khô (SM=0.12) thì rễ sẽ không đủ nước..."
+KHI TƯ VẤN CANH TÁC, BẮT BUỘC xem xét đồng thời: (1) Loại cây trồng ở phần [CÂY TRỒNG HIỆN TẠI], (2) Số ngày đã trồng để suy luận giai đoạn sinh trưởng:
+  Lúa nước: 0-25 ngày = mạ/bén rễ | 25-50 ngày = đẻ nhánh | 50-80 ngày = làm đòng | >80 ngày = trỗ bông/chín
+  Ví dụ: "Với lúa đã trồng 45 ngày (đang đẻ nhánh), VPD 3.2 kPa cho thấy cây bị stress nước — tưới ngay để tránh nghẹt đòng non."
 =========================================`;
 
-    const result = { weatherWidget, weatherSummary };
+    // Trả thêm activeCrops để chatController có thể merge vào userData nếu cần
+    const result = { weatherWidget, weatherSummary, activeCrops };
     weatherCache.set(cacheKey, result);
     return result;
 }

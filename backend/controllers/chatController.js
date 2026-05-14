@@ -115,6 +115,8 @@ export const sendMessage = async (req, res) => {
     // 4b. Gắn thêm dữ liệu thời tiết nếu cần (chỉ farmer & admin)
     if (role !== 'public' && needsWeatherContext(message)) {
       try {
+        // Nhận thêm activeCrops — danh sách cây đang canh tác kèm plantingDate
+        // activeCrops đã được nhúng vào weatherSummary nên không cần truyền riêng vào buildPrompt
         const { weatherSummary } = await getWeatherData(role, userId);
         userData = { ...userData, weatherSummary };
       } catch (weatherErr) {

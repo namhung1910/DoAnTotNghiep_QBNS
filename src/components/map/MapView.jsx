@@ -19,9 +19,9 @@ L.Icon.Default.mergeOptions({
   shadowUrl: markerShadow,
 });
 
-// Map center - Thái Bình, Vietnam
-const DEFAULT_CENTER = [20.45, 106.34];
-const DEFAULT_ZOOM = 12;
+// Map center - xã Lê Lợi, Thái Bình cũ, Vietnam
+const DEFAULT_CENTER = [20.430556, 106.455];
+const DEFAULT_ZOOM = 14;
 
 // Màu vùng quy hoạch theo loại zoneType — tông Pastel hài hòa
 const ZONE_COLORS = {
