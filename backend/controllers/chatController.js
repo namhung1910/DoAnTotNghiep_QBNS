@@ -1,12 +1,10 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { getNextGeminiInstance, getTotalKeys } from '../services/geminiService.js';
 import ChatHistory from '../models/ChatHistory.js';
 import { v4 as uuidv4 } from 'uuid';
 import { checkRateLimit, detectOutOfScope, compressHistory } from '../services/chatGuardService.js';
 import { fetchPublicContext, fetchFarmerContext, fetchAdminContext } from '../services/chatDataService.js';
 import { buildPrompt } from '../services/chatPromptService.js';
 import { getWeatherData } from '../services/weatherService.js';
-
-let genAI;
 
 // ─── Keyword Detection ────────────────────────────────────────────────────────
 // Câu hỏi thuần thời tiết
@@ -24,13 +22,6 @@ const needsWeatherContext = (message) => {
   return WEATHER_KEYWORDS.some(kw => lower.includes(kw));
 };
 // ─────────────────────────────────────────────────────────────────────────────
-
-const initGemini = () => {
-  if (!genAI && process.env.GEMINI_API_KEY) {
-    genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-  }
-  return genAI;
-};
 
 // @desc    Gửi tin nhắn và nhận phản hồi AI
 // @route   POST /api/chat/message
@@ -50,8 +41,8 @@ export const sendMessage = async (req, res) => {
       return res.status(400).json({ message: 'Vui lòng nhập tin nhắn' });
     }
 
-    const ai = initGemini();
-    if (!ai) {
+    const totalKeys = getTotalKeys();
+    if (totalKeys === 0) {
       return res.status(500).json({
         message: 'AI service chưa được cấu hình',
         reply: 'Xin lỗi, dịch vụ AI đang bảo trì. Vui lòng thử lại sau.'
@@ -128,23 +119,49 @@ export const sendMessage = async (req, res) => {
     // 4. Build Prompt — truyền cả message để được append vào cuối prompt
     const prompt = buildPrompt(role, userData, historyContext, message);
 
-    // Gửi message
-    const model = ai.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    // Thực thi gọi AI với cơ chế Auto-Retry & Round-Robin API Key
+    const maxRetries = Math.max(0, totalKeys - 1);
+    let attempt = 0;
+    let reply;
+    let estimatedTokens = 0;
+    let lastError;
 
-    // Đếm token (Gemini hỗ trợ đếm token)
-    const countResult = await model.countTokens(prompt);
-    const estimatedTokens = countResult.totalTokens;
+    while (attempt <= maxRetries) {
+      try {
+        const aiData = getNextGeminiInstance();
+        console.log(`[Gemini Rotation] Using Key ending in ${aiData.maskedKey}`);
+        
+        const currentModel = aiData.ai.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
-    if (estimatedTokens > 25000) {
-      return res.status(400).json({
-        message: 'Payload too large',
-        reply: 'Nội dung hội thoại quá dài so với giới hạn. Vui lòng xóa lịch sử chat bằng cách làm mới trang và thử lại.'
-      });
+        // Đếm token (chỉ đếm ở attempt đầu tiên để tối ưu thời gian phản hồi)
+        if (attempt === 0) {
+          const countResult = await currentModel.countTokens(prompt);
+          estimatedTokens = countResult.totalTokens;
+
+          if (estimatedTokens > 25000) {
+            return res.status(400).json({
+              message: 'Payload too large',
+              reply: 'Nội dung hội thoại quá dài so với giới hạn. Vui lòng xóa lịch sử chat bằng cách làm mới trang và thử lại.'
+            });
+          }
+        }
+
+        // Gọi AI
+        const result = await currentModel.generateContent(prompt);
+        reply = result.response.text();
+
+        // Thành công, thoát khỏi vòng lặp retry
+        break;
+      } catch (err) {
+        lastError = err;
+        console.warn(`[Gemini Rotation] Attempt ${attempt + 1} failed. Error: ${err.message}`);
+        attempt++;
+        if (attempt > maxRetries) {
+          console.error('[Gemini Rotation] All API keys exhausted or failed.');
+          throw lastError; // Ném lỗi ra catch bên ngoài của sendMessage
+        }
+      }
     }
-
-    // Thực thi gọi AI
-    const result = await model.generateContent(prompt);
-    const reply = result.response.text();
 
     // 6. Lưu DB nếu không phải public
     if (role !== 'public' && chatHistory) {
