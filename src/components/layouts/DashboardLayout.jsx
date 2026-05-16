@@ -1,6 +1,7 @@
-import { useState, lazy, Suspense } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { statisticsAPI } from '../../services/api';
 import NotificationBell from '../common/NotificationBell';
 import {
   FiHome, FiMap, FiPackage, FiMessageCircle, FiUsers, FiSettings,
@@ -9,7 +10,7 @@ import {
 } from 'react-icons/fi';
 // ChatBot lazy loaded — defers react-markdown (336KB) until widget is used
 const ChatBot = lazy(() => import('../chat/ChatBot'));
-import { getInitials } from '../../utils/format';
+import Avatar from '../common/Avatar';
 
 const DashboardLayout = ({ type = 'farmer' }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -18,24 +19,28 @@ const DashboardLayout = ({ type = 'farmer' }) => {
   const location = useLocation();
   const navigate = useNavigate();
 
+  const [badges, setBadges] = useState({});
+
   const farmerMenuItems = [
     { path: '/farmer', icon: FiHome, label: 'Tổng quan' },
     { path: '/farmer/farms', icon: FiMap, label: 'Thửa đất của tôi' },
     { path: '/farmer/products', icon: FiPackage, label: 'Sản phẩm của tôi' },
+    { path: '/farmer/news', icon: FiFileText, label: 'Bảng tin', badgeKey: 'news' },
     { path: '/farmer/statistics', icon: FiBarChart2, label: 'Thống kê' },
     { path: '/farmer/profile', icon: FiSettings, label: 'Cài đặt tài khoản' },
   ];
 
   const adminMenuItems = [
     { path: '/admin', icon: FiHome, label: 'Tổng quan' },
-    { path: '/admin/land-requests', icon: FiFileText, label: 'Yêu cầu cấp đất' },
-    { path: '/admin/complaints', icon: FiMessageCircle, label: 'Giải quyết khiếu nại' },
-    { path: '/admin/regions', icon: FiMap, label: 'Quản lý đất đai' },
-    { path: '/admin/products', icon: FiPackage, label: 'Quản lý sản phẩm' },
+    { path: '/admin/land-requests', icon: FiFileText, label: 'Yêu cầu cấp đất', badgeKey: 'landRequests' },
+    { path: '/admin/complaints', icon: FiMessageCircle, label: 'Giải quyết khiếu nại', badgeKey: 'complaints' },
+    { path: '/admin/regions', icon: FiMap, label: 'Quản lý đất đai', badgeKey: 'farms' },
+    { path: '/admin/products', icon: FiPackage, label: 'Quản lý sản phẩm', badgeKey: 'products' },
     { path: '/admin/users', icon: FiUsers, label: 'Quản lý nông dân' },
 
-    { path: '/admin/policies', icon: FiFileText, label: 'Chính sách' },
+    { path: '/admin/policies', icon: FiFileText, label: 'Bảng tin' },
     { path: '/admin/statistics', icon: FiBarChart2, label: 'Thống kê & Báo cáo' },
+    { path: '/admin/profile', icon: FiSettings, label: 'Cài đặt tài khoản' },
   ];
 
   const menuItems = type === 'admin' ? adminMenuItems : farmerMenuItems;
@@ -51,6 +56,32 @@ const DashboardLayout = ({ type = 'farmer' }) => {
     }
     return location.pathname.startsWith(path);
   };
+
+  useEffect(() => {
+    if (location.pathname === '/farmer/news' && type === 'farmer') {
+      localStorage.setItem('lastViewedNews', new Date().toISOString());
+      setBadges(prev => ({ ...prev, news: 0 }));
+    }
+  }, [location.pathname, type]);
+
+  useEffect(() => {
+    const fetchBadges = async () => {
+      try {
+        const params = {};
+        if (type === 'farmer') {
+          params.lastViewedNews = localStorage.getItem('lastViewedNews');
+        }
+        const { data } = await statisticsAPI.getBadges(params);
+        setBadges(data);
+      } catch (error) {
+        // Silently fail if badges cannot be fetched
+      }
+    };
+    
+    if (user) {
+      fetchBadges();
+    }
+  }, [user, type]);
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
@@ -93,15 +124,7 @@ const DashboardLayout = ({ type = 'farmer' }) => {
         {/* User info */}
         <div className="p-4 border-b border-gray-100">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-primary-400 to-primary-600 rounded-full flex items-center justify-center overflow-hidden">
-              {user?.avatar ? (
-                <img src={user.avatar} alt="avatar" className="w-full h-full object-cover" />
-              ) : (
-                <span className="text-white font-semibold">
-                  {getInitials(user?.fullName)}
-                </span>
-              )}
-            </div>
+            <Avatar src={user?.avatar} name={user?.fullName} size="md" />
             <div className="flex-1 min-w-0">
               <p className="font-medium text-gray-900 truncate">{user?.fullName}</p>
               <p className="text-xs text-gray-500 capitalize">
@@ -128,8 +151,12 @@ const DashboardLayout = ({ type = 'farmer' }) => {
             >
               <item.icon className="flex-shrink-0" />
               <span>{item.label}</span>
-              {isActive(item.path) && (
-                <FiChevronRight className="ml-auto" />
+              {item.badgeKey && badges[item.badgeKey] > 0 ? (
+                <span className="ml-auto bg-red-500 text-white text-[11px] font-bold px-2 py-0.5 rounded-full shadow-sm">
+                  {badges[item.badgeKey] > 99 ? '99+' : badges[item.badgeKey]}
+                </span>
+              ) : (
+                isActive(item.path) && <FiChevronRight className="ml-auto" />
               )}
             </Link>
           ))}
@@ -183,20 +210,7 @@ const DashboardLayout = ({ type = 'farmer' }) => {
               to={type === 'admin' ? '/admin/profile' : '/farmer/profile'}
               className="flex items-center space-x-2 p-2 hover:bg-gray-100 rounded-lg"
             >
-              <div className="w-8 h-8 bg-gradient-to-br from-primary-400 to-primary-600 rounded-full flex items-center justify-center overflow-hidden">
-                {user?.avatar && !imgError ? (
-                  <img
-                    src={user.avatar}
-                    alt="avatar"
-                    className="w-full h-full object-cover"
-                    onError={() => setImgError(true)}
-                  />
-                ) : (
-                  <span className="text-white text-sm font-semibold">
-                    {getInitials(user?.fullName)}
-                  </span>
-                )}
-              </div>
+              <Avatar src={user?.avatar} name={user?.fullName} size="sm" />
               <span className="hidden sm:block text-sm font-medium text-gray-700">
                 {user?.fullName}
               </span>

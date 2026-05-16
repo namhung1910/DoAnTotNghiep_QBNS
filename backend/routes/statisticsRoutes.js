@@ -6,7 +6,8 @@ import {
   getProductsByCertification,
   getPublicStatistics,
   getHarvestSummary,
-  getHistoricalHarvests
+  getHistoricalHarvests,
+  getDashboardBadges
 } from '../controllers/statisticsController.js';
 import { protect, adminOnly } from '../middleware/auth.js';
 
@@ -22,5 +23,6 @@ router.get('/harvest-summary', protect, adminOnly, getHarvestSummary);
 router.get('/by-region', protect, adminOnly, getStatisticsByRegion);
 router.get('/products-by-certification', protect, adminOnly, getProductsByCertification);
 router.get('/historical-harvests', protect, adminOnly, getHistoricalHarvests);
+router.get('/badges', protect, getDashboardBadges);
 
 export default router;

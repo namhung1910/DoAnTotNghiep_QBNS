@@ -140,16 +140,25 @@ export const statisticsAPI = {
   getByRegion: () => api.get('/statistics/by-region'),
   getProductsByCertification: () => api.get('/statistics/products-by-certification'),
   getHistoricalHarvests: (params) => api.get('/statistics/historical-harvests', { params }),
+  getBadges: (params) => api.get('/statistics/badges', { params }),
 };
 
-// Policy APIs
+// Policy / Bảng tin APIs
 export const policyAPI = {
   getAll: (params) => api.get('/policies', { params }),
   getById: (id) => api.get(`/policies/${id}`),
-  create: (data) => api.post('/policies', data),
-  update: (id, data) => api.put(`/policies/${id}`, data),
+  // Create/Update dùng FormData để hỗ trợ đính kèm ảnh
+  create: (formData) => api.post('/policies', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+  update: (id, formData) => api.put(`/policies/${id}`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
   delete: (id) => api.delete(`/policies/${id}`),
+  // Toggle like/unlike bài đăng (farmer + admin)
+  toggleLike: (id) => api.post(`/policies/${id}/like`),
 };
+
 
 // Land Request APIs
 export const landRequestAPI = {

@@ -8,7 +8,7 @@ const fileFilter = (req, file, cb) => {
     } else {
       cb(new Error('Chỉ chấp nhận file GeoJSON!'), false);
     }
-  } else if (file.fieldname === 'productImages' || file.fieldname === 'avatar') {
+  } else if (['productImages', 'avatar', 'postImages'].includes(file.fieldname)) {
     if (file.mimetype.startsWith('image/')) {
       cb(null, true);
     } else {

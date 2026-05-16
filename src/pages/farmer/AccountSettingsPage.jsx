@@ -147,7 +147,7 @@ const AccountSettingsPage = () => {
                     Cài đặt tài khoản
                     <div className="h-1.5 w-1.5 rounded-full bg-primary-500" />
                 </h1>
-                <p className="text-sm text-gray-500 mt-1">Quản lý định danh và thiết lập bảo mật hồ sơ nông dân của bạn.</p>
+                <p className="text-sm text-gray-500 mt-1">Quản lý định danh và thiết lập bảo mật hồ sơ {user?.role === 'admin' ? 'quản trị viên' : 'nông dân'} của bạn.</p>
             </div>
 
             {/* Compact Bento Grid */}
@@ -267,8 +267,8 @@ const AccountSettingsPage = () => {
                     </div>
                 </div>
 
-                {/* Card 3: Đổi mật khẩu (Grid Span 2) */}
-                <div className="md:col-span-2 bg-gray-50/40 rounded-3xl p-6 shadow-sm border border-gray-100 relative group transition-all hover:shadow-md">
+                {/* Card 3: Đổi mật khẩu */}
+                <div className={`${user?.role === 'admin' ? 'md:col-span-3' : 'md:col-span-2'} bg-gray-50/40 rounded-3xl p-6 shadow-sm border border-gray-100 relative group transition-all hover:shadow-md`}>
                     <div className="relative z-10 flex flex-col h-full">
                         <div className="flex items-center gap-3 mb-6">
                             <div className="w-10 h-10 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center border border-orange-100">
@@ -346,28 +346,30 @@ const AccountSettingsPage = () => {
                     </div>
                 </div>
 
-                {/* Card 4: Xóa tài khoản (Grid Span 1) */}
-                <div className="md:col-span-1 bg-red-50/30 rounded-3xl p-6 shadow-sm border border-red-100 flex flex-col justify-between items-start group hover:shadow-md transition-all">
-                    <div className="w-full">
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="w-10 h-10 rounded-xl bg-red-100 text-red-600 flex items-center justify-center border border-red-200 shadow-inner">
-                                <FiAlertTriangle size={20} />
+                {/* Card 4: Xóa tài khoản (Chỉ hiển thị cho nông dân) */}
+                {user?.role !== 'admin' && (
+                    <div className="md:col-span-1 bg-red-50/30 rounded-3xl p-6 shadow-sm border border-red-100 flex flex-col justify-between items-start group hover:shadow-md transition-all">
+                        <div className="w-full">
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className="w-10 h-10 rounded-xl bg-red-100 text-red-600 flex items-center justify-center border border-red-200 shadow-inner">
+                                    <FiAlertTriangle size={20} />
+                                </div>
+                                <h2 className="text-lg font-bold text-red-900 font-sans">Khu vực rủi ro</h2>
                             </div>
-                            <h2 className="text-lg font-bold text-red-900 font-sans">Khu vực rủi ro</h2>
+                            <p className="text-xs text-red-700/80 leading-relaxed font-medium">
+                                Xóa tài khoản sẽ loại bỏ vĩnh viễn mọi dữ liệu canh tác và chứng thực khỏi hệ thống.
+                            </p>
                         </div>
-                        <p className="text-xs text-red-700/80 leading-relaxed font-medium">
-                            Xóa tài khoản sẽ loại bỏ vĩnh viễn mọi dữ liệu canh tác và chứng thực khỏi hệ thống.
-                        </p>
-                    </div>
 
-                    <button
-                        type="button"
-                        onClick={() => setShowDeleteDialog(true)}
-                        className="w-full mt-6 py-3 px-4 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl text-sm transition-all shadow-sm active:scale-[0.98]"
-                    >
-                        Yêu cầu xóa dữ liệu
-                    </button>
-                </div>
+                        <button
+                            type="button"
+                            onClick={() => setShowDeleteDialog(true)}
+                            className="w-full mt-6 py-3 px-4 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl text-sm transition-all shadow-sm active:scale-[0.98]"
+                        >
+                            Yêu cầu xóa dữ liệu
+                        </button>
+                    </div>
+                )}
 
             </div>
 

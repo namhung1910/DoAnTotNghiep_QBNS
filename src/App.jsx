@@ -47,6 +47,10 @@ const AdminComplaintsPage = lazy(() => import('./pages/admin/AdminComplaintsPage
 const PendingProductsPage = lazy(() => import('./pages/admin/PendingProductsPage'));
 const UsersManagePage = lazy(() => import('./pages/admin/UsersManagePage'));
 const StatisticsPage = lazy(() => import('./pages/admin/StatisticsPage'));
+const AdminPoliciesPage = lazy(() => import('./pages/admin/AdminPoliciesPage'));
+
+// ── Farmer Pages ──────────────────────────────────────────────────────────────
+const FarmerNewsfeedPage = lazy(() => import('./pages/farmer/FarmerNewsfeedPage'));
 
 function App() {
   return (
@@ -109,6 +113,7 @@ function App() {
               <Route path="products/:id/edit" element={<CreateProductPage />} />
               <Route path="statistics" element={<FarmerStatisticsPage />} />
               <Route path="contacts" element={<FarmerDashboard />} />
+              <Route path="news" element={<FarmerNewsfeedPage />} />
               <Route path="profile" element={<AccountSettingsPage />} />
             </Route>
 
@@ -133,8 +138,9 @@ function App() {
               <Route path="products/pending" element={<PendingProductsPage />} />
               <Route path="products/:id/review" element={<PendingProductsPage />} />
               <Route path="users" element={<UsersManagePage />} />
-              <Route path="policies" element={<AdminDashboard />} />
+              <Route path="policies" element={<AdminPoliciesPage />} />
               <Route path="statistics" element={<StatisticsPage />} />
+              <Route path="profile" element={<AccountSettingsPage />} />
             </Route>
 
             {/* 404 */}

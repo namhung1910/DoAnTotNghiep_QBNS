@@ -58,27 +58,80 @@ NGUYÊN TẮC TRẢ LỜI NGHIÊM NGẶT:
 Hôm nay là: ${today}.`;
 
     } else if (role === 'admin') {
-        const { systemStats, farmsByStatus, pendingItems } = userData;
+        const { systemStats, farmsByStatus, cropBreakdown, regionStats,
+                pendingProductDetails, pendingLandRequests, alerts } = userData;
+
+        // Dòng cơ cấu cây trồng
+        const cropLines = cropBreakdown && cropBreakdown.length > 0
+            ? cropBreakdown.map(c => `- ${c._id}: ${c.farmCount} thửa, ${Math.round(c.totalArea)}m², tích lũy ${Math.round(c.totalYield)}kg`).join('\n')
+            : '- Chưa có dữ liệu';
+
+        // Dòng thống kê theo vùng quy hoạch
+        const regionLines = regionStats && regionStats.length > 0
+            ? regionStats.map(r =>
+                `- [${r.zoneCode || 'N/A'}] ${r.regionName || 'Chưa phân vùng'}: ${r.farmCount} thửa | ${Math.round(r.totalArea)}m² | ${Math.round(r.totalYield)}kg | Cây: ${(r.crops || []).filter(Boolean).join(', ') || 'N/A'}`
+              ).join('\n')
+            : '- Chưa có dữ liệu vùng quy hoạch';
+
+        // Dòng sản phẩm chờ duyệt
+        const pendingProductLines = pendingProductDetails && pendingProductDetails.length > 0
+            ? pendingProductDetails.map(p =>
+                `  • ${p.productName} — ${p.farmerId?.fullName || 'N/A'} | ${p.price?.toLocaleString('vi-VN')}đ/${p.unit} | ${p.certification}`
+              ).join('\n')
+            : '  (Không có)';
+
+        // Dòng yêu cầu cấp đất
+        const pendingLandLines = pendingLandRequests && pendingLandRequests.length > 0
+            ? pendingLandRequests.map(r =>
+                `  • ${r.user?.fullName || 'N/A'}${r.user?.phone ? ' (' + r.user.phone + ')' : ''} — xin ${r.requestedArea}m² trồng ${r.cropType || 'chưa xác định'}`
+              ).join('\n')
+            : '  (Không có)';
+
+        // Dòng cảnh báo thửa chưa nhập sản lượng
+        const missingYieldLines = alerts?.missingYieldFarms?.length > 0
+            ? alerts.missingYieldFarms.map(f => `  • ${f.name} — ${f.ownerId?.fullName || 'N/A'}`).join('\n')
+            : '  (Không có)';
+
+        // Dòng thửa sắp thu hoạch — xử lý cả trường hợp đang thu hoạch (status=harvesting, ko có ngày)
+        const upcomingHarvestLines = alerts?.upcomingHarvests?.length > 0
+            ? alerts.upcomingHarvests.map(f => {
+                const dateStr = f.expectedHarvestDate
+                    ? new Date(f.expectedHarvestDate).toLocaleDateString('vi-VN')
+                    : 'Đang thu hoạch (chưa nhập ngày cụ thể)';
+                return `  • ${f.name} (${f.cropType}) — ${f.ownerId?.fullName || 'N/A'} | Ngày: ${dateStr} | Ước tính: ${f.expectedYield || 0}kg`;
+              }).join('\n')
+            : '  (Không có)';
 
         systemPrompt = `Tên bạn là Dewy — trợ lý quản lý AI của Hệ thống Quản lý HTX Nông sản.
 Bạn đang hỗ trợ Ban Quản trị HTX. Tính cách của bạn chuyên nghiệp, rõ ràng, nhưng vẫn thân thiện. Luôn xưng là Tôi, gọi người dùng là Bạn.
 
-=== DỮ LIỆU TỔNG QUAN TOÀN HỆ THỐNG ===
+=== DỮ LIỆU TOÀN HỆ THỐNG HTX ===
+
 Tổng quan:
-- Số nông dân: ${systemStats.totalFarmers}
-- Số thửa đất: ${systemStats.totalFarms}
-- Tổng diện tích canh tác: ${systemStats.totalArea} m²
-- Tổng sản lượng toàn HTX: ${systemStats.totalYieldKg} kg
+- Nông dân: ${systemStats.totalFarmers} | Thửa đất: ${systemStats.totalFarms} | Diện tích: ${Math.round(systemStats.totalArea)}m²
+- Tổng sản lượng tích lũy: ${Math.round(systemStats.totalYieldKg)}kg
 
-Tình trạng mùa vụ (số thửa đất):
-- Lên kế hoạch (planning): ${farmsByStatus.planning || 0}
-- Đang gieo trồng (planting): ${farmsByStatus.planting || 0}
-- Đang phát triển (growing): ${farmsByStatus.growing || 0}
-- Đang thu hoạch (harvesting): ${farmsByStatus.harvesting || 0}
-- Đã thu hoạch (harvested): ${farmsByStatus.harvested || 0}
+Tình trạng mùa vụ (số thửa):
+- Lên kế hoạch: ${farmsByStatus.planning || 0} | Gieo trồng: ${farmsByStatus.planting || 0} | Phát triển: ${farmsByStatus.growing || 0} | Đang thu: ${farmsByStatus.harvesting || 0} | Đã thu: ${farmsByStatus.harvested || 0}
 
-Cần xử lý:
-- Sản phẩm chờ duyệt: ${pendingItems.products || 0}
+Cơ cấu cây trồng toàn HTX:
+${cropLines}
+
+Thống kê theo vùng quy hoạch:
+${regionLines}
+
+⚠️ CẦN XỬ LÝ:
+Sản phẩm chờ duyệt (${pendingProductDetails?.length || 0}):
+${pendingProductLines}
+
+Yêu cầu cấp đất chờ duyệt (${pendingLandRequests?.length || 0}):
+${pendingLandLines}
+
+Thửa đã thu hoạch chưa nhập sản lượng (${alerts?.missingYieldFarms?.length || 0}):
+${missingYieldLines}
+
+Sắp thu hoạch trong 7 ngày tới (${alerts?.upcomingHarvests?.length || 0}):
+${upcomingHarvestLines}
 ==========================================${weatherBlock}
 NGUYÊN TẮC TRẢ LỜI NGHIÊM NGẶT:
 1. Trả lời tự nhiên, chuyên nghiệp và đi thẳng vào vấn đề. TUYỆT ĐỐI KHÔNG tự động tóm tắt hoặc liệt kê các dữ liệu hệ thống nếu Admin không có yêu cầu cụ thể.
@@ -87,6 +140,8 @@ NGUYÊN TẮC TRẢ LỜI NGHIÊM NGẶT:
 4. Xử lý câu hỏi ngoài luồng: Nếu Bạn hỏi ngoài lề (không thuộc quản lý HTX, nông nghiệp...), hãy trả lời rất ngắn gọn và lái về công việc bằng 1 câu hỏi mở (vd: "... Bạn có muốn xem báo cáo sản lượng hôm nay không?").
 5. Trả lời bằng tiếng Việt.
 Hôm nay là: ${today}.`;
+
+
 
     } else {
         // Role public — khách vãng lai và người tiêu dùng

@@ -3,6 +3,9 @@ import Product from '../models/Product.js';
 import User from '../models/User.js';
 import Region from '../models/Region.js';
 import HarvestRecord from '../models/HarvestRecord.js';
+import LandRequest from '../models/LandRequest.js';
+import Complaint from '../models/Complaint.js';
+import Policy from '../models/Policy.js';
 
 // @desc    Lấy thống kê tổng quan (Admin Dashboard)
 // @route   GET /api/statistics/overview
@@ -407,5 +410,40 @@ export const getHistoricalHarvests = async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+};
+
+// @desc    Lấy số lượng thông báo/badge cho Sidebar Menu
+// @route   GET /api/statistics/badges
+// @access  Private (Admin & Farmer)
+export const getDashboardBadges = async (req, res) => {
+  try {
+    const role = req.user.role;
+    let badges = {};
+
+    if (role === 'admin') {
+      const landRequests = await LandRequest.countDocuments({ status: 'pending' });
+      const complaints = await Complaint.countDocuments({ status: 'pending' });
+      const farms = await Farm.countDocuments({ approvalStatus: 'pending' });
+      const products = await Product.countDocuments({ status: 'pending' });
+      
+      badges = { landRequests, complaints, farms, products };
+    } else if (role === 'farmer') {
+      const lastViewedNews = req.query.lastViewedNews;
+      const query = { isActive: true };
+      
+      // Nếu có truyền lastViewedNews, đếm những bài đăng mới hơn thời điểm đó
+      if (lastViewedNews && lastViewedNews !== 'null') {
+        query.createdAt = { $gt: new Date(lastViewedNews) };
+      }
+      
+      const news = await Policy.countDocuments(query);
+      badges = { news };
+    }
+
+    res.json(badges);
+  } catch (error) {
+    console.error('Lỗi khi lấy badges:', error);
+    res.status(500).json({ message: 'Lỗi server khi lấy badges' });
   }
 };

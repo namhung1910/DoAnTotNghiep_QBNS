@@ -66,16 +66,40 @@ export async function resolveCoordinates(role, userId) {
                         plantingDate: f.plantingDate || null,
                     }));
 
-                if (centroid) return { ...centroid, activeCrops };
+                if (centroid) return { ...centroid, activeCrops, cropSummary: [] };
             }
         }
 
         if (role === 'admin') {
             const regions = await Region.find({ isActive: true }).select('geometry').lean();
-            if (regions.length > 0) {
-                const centroid = computeCentroid(regions.map(r => r.geometry));
-                if (centroid) return { ...centroid, activeCrops: [] };
-            }
+            const centroid = regions.length > 0
+                ? computeCentroid(regions.map(r => r.geometry))
+                : null;
+
+            // BUG FIX: Thay vì trả activeCrops: [], query tổng hợp cây trồng toàn HTX
+            // để Dewy có ngữ cảnh thực tế khi admin hỏi về thời tiết/canh tác
+            const cropAgg = await Farm.aggregate([
+                { $match: { isActive: true, status: { $in: ['planting', 'growing', 'harvesting'] } } },
+                {
+                    $group: {
+                        _id: '$cropType',
+                        count: { $sum: 1 },
+                        totalArea: { $sum: '$area' }
+                    }
+                },
+                { $sort: { totalArea: -1 } }
+            ]);
+
+            // cropSummary cho admin: tổng hợp theo loại cây (khác activeCrops của farmer: per-farm)
+            const cropSummary = cropAgg.map(c => ({
+                cropType:  c._id || 'Chưa xác định',
+                count:     c.count,
+                totalArea: c.totalArea,
+            }));
+
+            const lat = centroid?.lat ?? parseFloat(process.env.WEATHER_LAT || '10.98');
+            const lon = centroid?.lon ?? parseFloat(process.env.WEATHER_LON || '106.65');
+            return { lat, lon, activeCrops: [], cropSummary };
         }
     } catch (err) {
         console.error('[weatherService] resolveCoordinates error:', err.message);
@@ -84,7 +108,7 @@ export async function resolveCoordinates(role, userId) {
     // Fallback .env
     const lat = parseFloat(process.env.WEATHER_LAT || '10.98');
     const lon = parseFloat(process.env.WEATHER_LON || '106.65');
-    return { lat, lon, activeCrops: [] };
+    return { lat, lon, activeCrops: [], cropSummary: [] };
 }
 
 // ─── Open Meteo Call ─────────────────────────────────────────────────────────
@@ -354,7 +378,7 @@ function getWeatherState(isDay, precip, radiation, humidity) {
  * @returns {{ weatherWidget: object, weatherSummary: string }}
  */
 export async function getWeatherData(role, userId = null) {
-    const { lat, lon, activeCrops = [] } = await resolveCoordinates(role, userId);
+    const { lat, lon, activeCrops = [], cropSummary = [] } = await resolveCoordinates(role, userId);
 
     // Cache theo toạ độ làm tròn 2 chữ số (~1.1km) — nhiều farmer cùng vùng sử dụng chung 1 cầu trả lời
     const latKey = lat.toFixed(2);
@@ -457,20 +481,41 @@ export async function getWeatherData(role, userId = null) {
         return `  ${label} (${d.date}): Min ${d.minTempC}°C / Max ${d.maxTempC}°C | Tổng mưa ${d.totalPrecipMm}mm | Gió max ${d.maxWindKmh}km/h | ET0 ${et0Context(d.totalEt0Mm)} | Độ ẩm đất: ${soilContext(d.avgSoilMoisture07)} | VPD TB ${d.avgVpd != null ? d.avgVpd + ' kPa' : 'N/A'}\n  Các mốc giờ quan trọng:\n${slotLines || '    (không có dữ liệu mốc giờ)'}`;
     }).join('\n');
 
-    // Xây dựng ngữ cảnh cây trồng — tính số ngày đã trồng để Dewy suy luận giai đoạn sinh trưởng
-    const cropContextLines = activeCrops.length > 0
-        ? activeCrops.map(c => {
+    // Xây dựng ngữ cảnh cây trồng theo role:
+    // - Farmer: hiển thị chi tiết từng thửa + số ngày đã trồng (để suy luận giai đoạn sinh trưởng)
+    // - Admin: hiển thị tổng hợp theo loại cây toàn HTX (groupBy cropType)
+    let cropContextHeader;
+    let cropContextLines;
+
+    if (activeCrops.length > 0) {
+        // Farmer context: per-farm, có plantingDate
+        cropContextHeader = '[CÂY TRỒNG HIỆN TẠI CỦA NÔNG DÂN]';
+        cropContextLines = activeCrops.map(c => {
             const daysSincePlanting = c.plantingDate
                 ? Math.floor((Date.now() - new Date(c.plantingDate)) / 86400000)
                 : null;
             return `- ${c.name}: ${c.cropType} | Giai đoạn: ${c.status}` +
                    (daysSincePlanting !== null ? ` | Đã trồng ${daysSincePlanting} ngày` : ' | Ngày trồng chưa ghi nhận');
-        }).join('\n')
-        : '- Không có thửa đất đang canh tác';
+        }).join('\n');
+    } else if (cropSummary.length > 0) {
+        // Admin context: tổng hợp toàn HTX theo cropType
+        cropContextHeader = '[CÂY TRỒNG TOÀN HTX ĐANG CANH TÁC]';
+        cropContextLines = cropSummary.map(c =>
+            `- ${c.cropType}: ${c.count} thửa đất, tổng ${Math.round(c.totalArea)} m²`
+        ).join('\n');
+    } else {
+        cropContextHeader = '[CÂY TRỒNG]';
+        cropContextLines = '- Không có thửa đất đang canh tác';
+    }
+
+    // Ghi chú canh tác phụ thuộc role: farmer cần suy luận giai đoạn sinh trưởng, admin cần tư vấn hệ thống
+    const cropAdviceNote = activeCrops.length > 0
+        ? `KHI TƯ VẤN CANH TÁC, BẮT BUỘC xem xét đồng thời: (1) Loại cây trồng ở phần [CÂY TRỒNG HIỆN TẠI CỦA NÔNG DÂN], (2) Số ngày đã trồng để suy luận giai đoạn sinh trưởng:\n  Lúa nước: 0-25 ngày = mạ/bén rễ | 25-50 ngày = đẻ nhánh | 50-80 ngày = làm đòng | >80 ngày = trỗ bông/chín\n  Ví dụ: "Với lúa đã trồng 45 ngày (đang đẻ nhánh), VPD 3.2 kPa cho thấy cây bị stress nước — tưới ngay để tránh nghẹt đòng non."`
+        : `Đây là dữ liệu thời tiết toàn khu vực HTX. Khi tư vấn, hãy xem xét điều kiện thời tiết ảnh hưởng đến TẤT CẢ các loại cây đang được canh tác trong HTX (xem phần [CÂY TRỒNG TOÀN HTX]). Ưu tiên cảnh báo nếu có nguy cơ nấm bệnh, hạn hán, hoặc điều kiện bất lợi trên diện rộng.`;
 
     const weatherSummary = `=== DỮ LIỆU THỜI TIẾT KHU VỰC HTX (Toạ độ: ${r(lat, 4)}, ${r(lon, 4)}) ===
 
-[CÂY TRỒNG HIỆN TẠI]
+${cropContextHeader}
 ${cropContextLines}
 
 [QUÁ KHỨ 2 NGÀY]
@@ -497,9 +542,7 @@ ${forecastLines}
 [Ghi chú cho Dewy — ƯU TIÊN CAO khi tư vấn canh tác]
 Hãy dùng các số liệu trên để phân tích VÀ GIẢI THÍCH cụ thể tại sao nên/không nên thực hiện hoạt động được hỏi.
 Đừng chỉ nêu kết quả — hãy giải thích cơ chế: VD "VPD 3.2 kPa nghĩa là cây đang thoát hơi rất mạnh, kết hợp với đất khô (SM=0.12) thì rễ sẽ không đủ nước..."
-KHI TƯ VẤN CANH TÁC, BẮT BUỘC xem xét đồng thời: (1) Loại cây trồng ở phần [CÂY TRỒNG HIỆN TẠI], (2) Số ngày đã trồng để suy luận giai đoạn sinh trưởng:
-  Lúa nước: 0-25 ngày = mạ/bén rễ | 25-50 ngày = đẻ nhánh | 50-80 ngày = làm đòng | >80 ngày = trỗ bông/chín
-  Ví dụ: "Với lúa đã trồng 45 ngày (đang đẻ nhánh), VPD 3.2 kPa cho thấy cây bị stress nước — tưới ngay để tránh nghẹt đòng non."
+${cropAdviceNote}
 =========================================`;
 
     // Trả thêm activeCrops để chatController có thể merge vào userData nếu cần
