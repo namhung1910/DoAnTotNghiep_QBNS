@@ -33,7 +33,7 @@ const HarvestHistoryModal = ({ isOpen, onClose, farm }) => {
 
   // Chuẩn bị data cho biểu đồ thay đổi từ bản ghi cũ -> mới
   const chartData = [...history].reverse().map(item => ({
-    name: item.season || new Date(item.harvestDate).toLocaleDateString('vi-VN'),
+    name: item.quarter || new Date(item.harvestDate).toLocaleDateString('vi-VN'),
     yield: item.yieldInKg,
     cropType: item.cropType
   }));
@@ -52,7 +52,7 @@ const HarvestHistoryModal = ({ isOpen, onClose, farm }) => {
       ) : history.length === 0 ? (
         <div className="py-12 text-center text-gray-400">
           <FiCalendar className="mx-auto text-4xl mb-3 opacity-30" />
-          <p>Thửa đất này chưa ghi nhận vụ thu hoạch nào.</p>
+          <p>Thửa đất này chưa ghi nhận đợt thu hoạch nào.</p>
         </div>
       ) : (
         <div className="space-y-6">
@@ -72,7 +72,7 @@ const HarvestHistoryModal = ({ isOpen, onClose, farm }) => {
                     cursor={{fill: '#F3F4F6'}}
                     contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                     formatter={(value, name) => [`${new Intl.NumberFormat('vi-VN').format(value)} kg`, 'Sản lượng']}
-                    labelFormatter={(label) => `Vụ: ${label}`}
+                    labelFormatter={(label) => `Quý: ${label}`}
                   />
                   <Bar dataKey="yield" radius={[4, 4, 0, 0]} maxBarSize={50}>
                     {chartData.map((entry, index) => (
@@ -94,7 +94,7 @@ const HarvestHistoryModal = ({ isOpen, onClose, farm }) => {
               <table className="w-full text-sm text-left">
                 <thead className="bg-gray-50 text-gray-600 font-medium border-b border-gray-200">
                   <tr>
-                    <th className="px-4 py-3">Mùa vụ / Thời gian</th>
+                    <th className="px-4 py-3">Quý / Thời gian</th>
                     <th className="px-4 py-3">Cây trồng</th>
                     <th className="px-4 py-3 text-right">Sản lượng</th>
                   </tr>
@@ -103,7 +103,7 @@ const HarvestHistoryModal = ({ isOpen, onClose, farm }) => {
                   {history.map((record) => (
                     <tr key={record._id} className="hover:bg-gray-50">
                       <td className="px-4 py-3">
-                        <div className="font-semibold text-gray-900">{record.season}</div>
+                        <div className="font-semibold text-gray-900">{record.quarter || record.season}</div>
                         <div className="text-xs text-gray-500">
                           Thu hoạch: {new Date(record.harvestDate).toLocaleDateString('vi-VN')}
                         </div>

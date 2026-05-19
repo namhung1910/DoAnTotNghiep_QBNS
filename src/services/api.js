@@ -97,7 +97,7 @@ export const farmAPI = {
 export const productAPI = {
   getAll: (params) => api.get('/products', { params }),
   getById: (id) => api.get(`/products/${id}`),
-  incrementView: (id) => api.post(`/products/${id}/view`), // Separate endpoint for view count
+  incrementView: (id) => api.post(`/products/${id}/view`), // Endpoint tăng lượt xem
   getMyProducts: (params) => api.get('/products/user/my-products', { params }),
   create: (formData) => api.post('/products', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
@@ -108,9 +108,11 @@ export const productAPI = {
   delete: (id) => api.delete(`/products/${id}`),
   getPending: (params) => api.get('/products/admin/pending', { params }),
   review: (id, data) => api.put(`/products/${id}/review`, data),
-  // Mới thêm cho tracking và bán hàng
+  // Tracking và bán hàng
   trackInterest: (id) => api.post(`/products/${id}/track-interest`),
-  recordSale: (id, data) => api.post(`/products/${id}/record-sale`, data),
+  recordSale: (id, data) => api.post(`/products/${id}/record-sale`, data), // Legacy: 1 thửa
+  // Mới: phân bổ kho nhiều thửa — body: { farmAllocations: [{ farmId, amount }] }
+  recordSaleMulti: (id, data) => api.post(`/products/${id}/record-sale-multi`, data),
 };
 
 // Chat APIs

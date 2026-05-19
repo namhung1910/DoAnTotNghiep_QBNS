@@ -1,12 +1,32 @@
 import { useState, useEffect } from 'react';
 import { FiCheck, FiX, FiFileText, FiMap, FiMapPin } from 'react-icons/fi';
-import { landRequestAPI, farmAPI } from '../../services/api';
+import { landRequestAPI, farmAPI, regionAPI } from '../../services/api';
 import toast from 'react-hot-toast';
 import Loading from '../../components/common/Loading';
 import Modal from '../../components/common/Modal';
 import { MapContainer, TileLayer, GeoJSON, Marker } from 'react-leaflet';
 import L from 'leaflet';
 import Button from '../../components/common/Button';
+
+// Màu vùng quy hoạch — dùng chung với MapView
+const ZONE_COLORS = {
+  VLT: { fill: '#fef08a', border: '#ca8a04' },
+  VCN: { fill: '#fed7aa', border: '#c2410c' },
+  VAR: { fill: '#bbf7d0', border: '#16a34a' },
+  default: { fill: '#bbf7d0', border: '#16a34a' },
+};
+
+const getRegionStyle = (feature) => {
+  const zoneType = feature?.properties?.zoneType || 'default';
+  const colors = ZONE_COLORS[zoneType] || ZONE_COLORS.default;
+  return {
+    fillColor: colors.fill,
+    fillOpacity: 0.4,
+    color: colors.border,
+    weight: 2,
+    dashArray: '5, 5'
+  };
+};
 
 const pinIcon = new L.DivIcon({
     html: `<div style="display:flex;flex-direction:column;align-items:center;transform:translate(-50%,-100%)"><svg width="28" height="36" viewBox="0 0 32 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M16 2C9.373 2 4 7.373 4 14c0 9.333 12 24 12 24S28 23.333 28 14C28 7.373 22.627 2 16 2z" fill="#22c55e" stroke="white" stroke-width="2"/><circle cx="16" cy="14" r="5" fill="white"/></svg></div>`,
@@ -26,6 +46,7 @@ const LandRequestsPage = () => {
     // Map preview modal
     const [showMapModal, setShowMapModal] = useState(false);
     const [previewFarm, setPreviewFarm] = useState(null);
+    const [previewRegions, setPreviewRegions] = useState(null); // Vùng quy hoạch cho bản đồ preview
 
     useEffect(() => {
         fetchRequests();
@@ -112,9 +133,18 @@ const LandRequestsPage = () => {
         }
     };
 
-    const openMapPreview = (request) => {
+    const openMapPreview = async (request) => {
         setPreviewFarm(request);
         setShowMapModal(true);
+        // Load vùng quy hoạch để hiển thị trên bản đồ preview (nếu chưa load)
+        if (!previewRegions) {
+            try {
+                const res = await regionAPI.getGeoJSON();
+                setPreviewRegions(res.data);
+            } catch (e) {
+                console.warn('Không thể tải vùng quy hoạch cho bản đồ preview:', e.message);
+            }
+        }
     };
 
     if (loading) return <Loading fullScreen={false} />;
@@ -241,20 +271,30 @@ const LandRequestsPage = () => {
                             <span className="bg-blue-50 text-blue-800 px-3 py-1 rounded-full">{previewFarm.assignedFarm.cropType || previewFarm.cropType || 'N/A'}</span>
                             <span className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full">{(previewFarm.assignedFarm.area || previewFarm.requestedArea)?.toLocaleString()} m²</span>
                         </div>
-                        <div style={{ height: 380 }} className="rounded-xl overflow-hidden border border-gray-200">
+                        <div style={{ height: 400 }} className="rounded-xl overflow-hidden border border-gray-200">
                             <MapContainer
                                 center={
                                     previewFarm.assignedFarm.geometry?.type === 'Point'
                                         ? [previewFarm.assignedFarm.geometry.coordinates[1], previewFarm.assignedFarm.geometry.coordinates[0]]
                                         : [20.4167, 106.3833]
                                 }
-                                zoom={16}
+                                zoom={15}
                                 style={{ height: '100%', width: '100%' }}
                             >
                                 <TileLayer
                                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                                     attribution="© OpenStreetMap contributors"
                                 />
+                                {/* Vùng quy hoạch — layer dưới cùng */}
+                                {previewRegions && (
+                                    <GeoJSON
+                                        key="preview-regions"
+                                        data={previewRegions}
+                                        style={getRegionStyle}
+                                        interactive={false}
+                                    />
+                                )}
+                                {/* Thửa đất nông dân đã chọn */}
                                 {previewFarm.assignedFarm.geometry?.type === 'Point' ? (
                                     <Marker
                                         position={[
@@ -266,12 +306,15 @@ const LandRequestsPage = () => {
                                 ) : previewFarm.assignedFarm.geometry ? (
                                     <GeoJSON
                                         data={previewFarm.assignedFarm.geometry}
-                                        style={{ color: '#22c55e', weight: 3, fillOpacity: 0.3 }}
+                                        style={{ color: '#22c55e', weight: 3, fillOpacity: 0.4 }}
                                     />
                                 ) : null}
                             </MapContainer>
                         </div>
-                        <p className="text-xs text-gray-500">📍 Dấu mốc xanh = vị trí thửa đất nông dân đã đánh dấu</p>
+                        <div className="flex items-center justify-between text-xs text-gray-500">
+                            <p>📍 Dấu mốc xanh = vị trí thửa đất nông dân đã đánh dấu</p>
+                            <p>🗺️ Các vùng màu = vùng quy hoạch nông nghiệp</p>
+                        </div>
                     </div>
                 )}
             </Modal>

@@ -289,29 +289,38 @@ const ProductDetailPage = () => {
           </div>
         </div>
 
-        {/* Farm Info */}
-        {product.farmId && (
+        {/* Thông tin vùng trồng — hỗ trợ nhiều thửa đất */}
+        {product.farmIds && product.farmIds.length > 0 && (
           <div className="mt-12">
             <h2 className="text-2xl font-bold text-gray-900 mb-6">Thông tin vùng trồng</h2>
-            <div className="card">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div>
-                  <p className="text-sm text-gray-500">Loại cây trồng</p>
-                  <p className="font-semibold text-gray-900">{product.farmId.cropType}</p>
+            <div className={`grid gap-4 ${product.farmIds.length > 1 ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1'}`}>
+              {product.farmIds.map((farm, idx) => (
+                <div key={farm._id || idx} className="card">
+                  {product.farmIds.length > 1 && (
+                    <p className="text-xs font-semibold text-primary-600 uppercase tracking-wide mb-3">
+                      Thửa đất #{idx + 1}{farm.name ? ` — ${farm.name}` : ''}
+                    </p>
+                  )}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <p className="text-sm text-gray-500">Loại cây trồng</p>
+                      <p className="font-semibold text-gray-900">{farm.cropType || '—'}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Diện tích</p>
+                      <p className="font-semibold text-gray-900">
+                        {farm.area?.toLocaleString() || '—'} m²
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Quy hoạch</p>
+                      <p className="font-semibold text-gray-900">
+                        {farm.planningData || 'Vùng quy hoạch nông nghiệp'}
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm text-gray-500">Diện tích</p>
-                  <p className="font-semibold text-gray-900">
-                    {product.farmId.area?.toLocaleString()} m²
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Quy hoạch</p>
-                  <p className="font-semibold text-gray-900">
-                    {product.farmId.planningData || 'Vùng quy hoạch nông nghiệp'}
-                  </p>
-                </div>
-              </div>
+              ))}
             </div>
           </div>
         )}

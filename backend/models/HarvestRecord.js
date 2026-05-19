@@ -36,9 +36,11 @@ const harvestRecordSchema = new mongoose.Schema({
     enum: ['kg', 'tấn'],
     default: 'kg'
   },
-  season: {
+  // Quý thu hoạch — tự động tính từ harvestDate, format: Q1/YYYY ... Q4/YYYY
+  // Trung tính với mọi loại cây trồng, không gắn với khái niệm vụ lúa
+  quarter: {
     type: String,
-    default: 'Khác' // Có thể gán tự động dựa trên tháng
+    default: 'Khác'
   },
   notes: {
     type: String,
@@ -48,20 +50,13 @@ const harvestRecordSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Helper auto-calculate season before save
+// Tự động tính quý (Q1~Q4) trước khi lưu — trung tính với mọi loại cây trồng
 harvestRecordSchema.pre('save', function (next) {
-  if (this.isModified('harvestDate') || !this.season || this.season === 'Khác') {
-    const month = this.harvestDate.getMonth() + 1; // 1-12
-    const year = this.harvestDate.getFullYear();
-    let seasonName = 'Khác';
-    
-    // Gợi ý mùa vụ Việt Nam cơ bản:
-    // Xuân (Tháng 1-3), Hè Thu (Tháng 4-8), Thu Đông (Tháng 9-12)
-    if (month >= 1 && month <= 3) seasonName = 'Vụ Xuân';
-    else if (month >= 4 && month <= 8) seasonName = 'Vụ Hè Thu';
-    else if (month >= 9 && month <= 12) seasonName = 'Vụ Thu Đông';
-    
-    this.season = `${seasonName} ${year}`;
+  if (this.isModified('harvestDate') || !this.quarter || this.quarter === 'Khác') {
+    const month = this.harvestDate.getMonth() + 1; // 1–12
+    const year  = this.harvestDate.getFullYear();
+    const q     = Math.ceil(month / 3); // 1-3→1, 4-6→2, 7-9→3, 10-12→4
+    this.quarter = `Q${q}/${year}`;
   }
   next();
 });

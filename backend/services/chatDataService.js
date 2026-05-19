@@ -15,9 +15,9 @@ export const fetchPublicContext = async () => {
     try {
         // Lấy sản phẩm approved, populate người bán và thửa đất để tính tồn kho
         const activeProducts = await Product.find({ status: 'approved' })
-            .select('productName price unit certification description soldQuantity farmId farmerId')
+            .select('productName price unit certification description soldQuantity farmIds farmerId')
             .populate('farmerId', 'fullName phone address')
-            .populate('farmId', 'cumulativeYieldKg stockAdjustment soldOutsideKg name')
+            .populate('farmIds', 'cumulativeYieldKg stockAdjustment soldOutsideKg name')
             .sort({ viewCount: -1 })
             .limit(10)
             .lean();
@@ -31,7 +31,11 @@ export const fetchPublicContext = async () => {
             unit:          p.unit,
             certification: p.certification,
             description:   p.description,
-            actualStock:   calcActualStock(p.farmId, p.soldQuantity),
+            // Tính tồn kho tổng hợp từ tất cả thửa trong farmIds
+            actualStock:   Math.max(0,
+                (p.farmIds || []).reduce((sum, f) => sum + calcActualStock(f, 0), 0)
+                - (p.soldQuantity || 0)
+            ),
             sellerName:    p.farmerId?.fullName   || 'HTX Nông sản',
             sellerPhone:   p.farmerId?.phone      || 'Liên hệ HTX',
             sellerAddress: p.farmerId?.address    || 'Kiến Xương, Thái Bình',
@@ -83,16 +87,17 @@ export const fetchFarmerContext = async (userId) => {
         // FIX BUG: field 'quantity' không tồn tại trong Product schema
         // Sử dụng 'soldQuantity' (số kg đã bán qua hệ thống) — đúng với schema
         const myProducts = await Product.find({ farmerId: userId })
-            .select('productName price soldQuantity certification status viewCount farmId')
-            .populate('farmId', 'cumulativeYieldKg stockAdjustment soldOutsideKg name _id')
+            .select('productName price soldQuantity certification status viewCount farmIds')
+            .populate('farmIds', 'cumulativeYieldKg stockAdjustment soldOutsideKg name _id')
             .limit(10)
             .lean();
 
-        // Map farmId → product để tra cứu nhanh O(1) thay vì O(n²)
+        // Map farmId → product để tra cứu nhanh O(1) — mỗi farm trong farmIds đều được map
         const productByFarmId = {};
         for (const p of myProducts) {
-            if (p.farmId?._id) {
-                productByFarmId[p.farmId._id.toString()] = p;
+            for (const f of (p.farmIds || [])) {
+                const fid = f._id ? f._id.toString() : f.toString();
+                productByFarmId[fid] = p;
             }
         }
 
@@ -117,7 +122,7 @@ export const fetchFarmerContext = async (userId) => {
 
         // Lịch sử thu hoạch gần đây — giữ nguyên logic cũ
         const myHarvests = await HarvestRecord.find({ ownerId: userId })
-            .select('cropType yieldInKg harvestDate season')
+            .select('cropType yieldInKg harvestDate quarter')
             .sort({ harvestDate: -1 })
             .limit(10)
             .lean();

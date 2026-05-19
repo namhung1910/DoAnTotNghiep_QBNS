@@ -23,7 +23,7 @@ export const buildPrompt = (role, userData, historyContext, message) => {
 
         // Dòng lịch sử thu hoạch
         const harvestLines = myHarvests && myHarvests.length > 0
-            ? myHarvests.map(h => `- ${h.season} (${new Date(h.harvestDate).toLocaleDateString('vi-VN')}): ${h.cropType} đạt ${h.yieldInKg}kg`).join('\n')
+            ? myHarvests.map(h => `- ${h.quarter || 'N/A'} (${new Date(h.harvestDate).toLocaleDateString('vi-VN')}): ${h.cropType} đạt ${h.yieldInKg}kg`).join('\n')
             : '- Chưa có lịch sử thu hoạch';
 
         // Dòng sản phẩm đang đăng bán (dùng soldQuantity đúng với schema)

@@ -1,11 +1,12 @@
 import mongoose from 'mongoose';
 
 const productSchema = new mongoose.Schema({
-  farmId: {
+  // ── Mảng thửa đất cung cấp hàng cho sản phẩm này (1 hoặc nhiều) ──────────
+  // Nguồn dữ liệu DUY NHẤT liên kết Product với Farm — hỗ trợ đa thửa đất
+  farmIds: [{
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Farm',
-    required: true
-  },
+    ref: 'Farm'
+  }],
   farmerId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',

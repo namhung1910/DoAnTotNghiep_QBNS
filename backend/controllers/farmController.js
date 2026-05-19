@@ -390,7 +390,7 @@ export const updateSeasonStatus = async (req, res) => {
           harvestDate: new Date(), // Thời điểm hủy
           yieldInKg: 0,
           yieldUnit: 'kg',
-          season: 'Vụ bị hủy',
+          quarter: 'Hủy vụ',
           notes: `[HỦY VỤ] ${notes || 'Không rõ lý do'}`
         });
       } catch (err) {

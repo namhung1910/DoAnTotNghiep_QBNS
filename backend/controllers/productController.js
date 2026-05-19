@@ -1,6 +1,51 @@
 import Product from '../models/Product.js';
 import Farm from '../models/Farm.js';
+import StockHistory from '../models/StockHistory.js';
 import { uploadImageToCloudinary, deleteImageFromCloudinary } from '../services/cloudinaryService.js';
+
+// ── Helper: Tính tồn kho khả dụng cho 1 Farm ────────────────────────────────
+const calcFarmStock = (farm) => {
+  const cumulative = farm.cumulativeYieldKg || 0;
+  const adjustment = farm.stockAdjustment || 0;
+  const soldOutside = farm.soldOutsideKg || 0;
+  return cumulative + adjustment - soldOutside;
+};
+
+// ── Helper: Tính tổng stock từ nhiều Farm ───────────────────────────────────
+// legacySoldQty: soldQuantity trên Product cũ (pre-migration, chưa migrate sang Farm.soldOutsideKg)
+// Sản phẩm mới (recordSaleMulti): soldOutsideKg đã được cập nhật → legacySoldQty = 0
+const calcTotalStock = (farms, legacySoldQty = 0) =>
+  Math.max(0, farms.reduce((sum, f) => sum + calcFarmStock(f), 0) - legacySoldQty);
+
+// ── Helper: Xác định legacySoldQty cho 1 product object ─────────────────────
+// Nếu tất cả farm đều có soldOutsideKg = 0 (chưa từng dùng recordSaleMulti)
+// thì soldQuantity trên Product là từ hệ thống cũ → cần trừ thêm
+const getLegacySoldQty = (pObj) => {
+  const farms = pObj.farmIds || [];
+  const totalSoldOutside = farms.reduce((s, f) => s + (f.soldOutsideKg || 0), 0);
+  return totalSoldOutside === 0 ? (pObj.soldQuantity || 0) : 0;
+};
+
+
+// ── Helper: Validate farmIds gửi từ client thuộc về farmer đang đăng nhập ───
+// Trả về { farms } nếu hợp lệ, throw Error nếu không hợp lệ
+const validateFarmIds = async (farmIds, userId) => {
+  if (!farmIds || !Array.isArray(farmIds) || farmIds.length === 0) {
+    throw new Error('Vui lòng chọn ít nhất 1 thửa đất');
+  }
+  const farms = await Farm.find({
+    _id: { $in: farmIds },
+    ownerId: userId,
+    isActive: true,
+    approvalStatus: 'approved'
+  });
+  if (farms.length !== farmIds.length) {
+    throw new Error('Một hoặc nhiều thửa đất không hợp lệ hoặc không thuộc về bạn');
+  }
+  return farms;
+};
+
+
 
 // @desc    Lấy tất cả sản phẩm đã duyệt (Public)
 // @route   GET /api/products
@@ -10,15 +55,8 @@ export const getProducts = async (req, res) => {
     const { category, certification, search, page = 1, limit = 12 } = req.query;
 
     let query = { status: 'approved' };
-
-    if (category) {
-      query.category = category;
-    }
-
-    if (certification && certification !== 'Không có') {
-      query.certification = certification;
-    }
-
+    if (category) query.category = category;
+    if (certification && certification !== 'Không có') query.certification = certification;
     if (search) {
       query.$or = [
         { productName: { $regex: search, $options: 'i' } },
@@ -29,17 +67,18 @@ export const getProducts = async (req, res) => {
     const total = await Product.countDocuments(query);
     const products = await Product.find(query)
       .populate('farmerId', 'fullName phone address')
-      .populate('farmId', 'cropType area geometry')
+      .populate('farmIds', 'cropType area geometry name cumulativeYieldKg stockAdjustment soldOutsideKg')
       .skip((page - 1) * limit)
       .limit(parseInt(limit))
       .sort({ createdAt: -1 });
 
-    res.json({
-      products,
-      page: parseInt(page),
-      pages: Math.ceil(total / limit),
-      total
+    const productsWithStock = products.map(p => {
+      const pObj = p.toObject();
+      pObj.totalAvailableKg = calcTotalStock(pObj.farmIds || []);
+      return pObj;
     });
+
+    res.json({ products: productsWithStock, page: parseInt(page), pages: Math.ceil(total / limit), total });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Lỗi server', error: error.message });
@@ -53,20 +92,15 @@ export const getProductById = async (req, res) => {
   try {
     const product = await Product.findById(req.params.id)
       .populate('farmerId', 'fullName phone address avatar')
-      .populate('farmId', 'cropType area geometry status planningData cumulativeYieldKg stockAdjustment soldOutsideKg');
+      .populate('farmIds', 'name cropType area geometry status cumulativeYieldKg stockAdjustment soldOutsideKg');
 
     if (!product) {
       return res.status(404).json({ message: 'Không tìm thấy sản phẩm' });
     }
 
-    // Calculate actual stock
-    const cumulative = product.farmId?.cumulativeYieldKg || 0;
-    const adjustment = product.farmId?.stockAdjustment || 0;
-    const soldOutside = product.farmId?.soldOutsideKg || 0;
-    const soldProduct = product.soldQuantity || 0;
-    const actualStock = cumulative + adjustment - soldOutside - soldProduct;
-
-    res.json({ ...product.toObject(), actualStock });
+    const pObj = product.toObject();
+    pObj.actualStock = calcTotalStock(pObj.farmIds || [], getLegacySoldQty(pObj));
+    res.json(pObj);
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Lỗi server', error: error.message });
@@ -100,26 +134,23 @@ export const incrementViewCount = async (req, res) => {
 export const getMyProducts = async (req, res) => {
   try {
     const { status, page = 1, limit = 10 } = req.query;
-
     let query = { farmerId: req.user._id };
-
-    if (status) {
-      query.status = status;
-    }
+    if (status) query.status = status;
 
     const total = await Product.countDocuments(query);
     const products = await Product.find(query)
-      .populate('farmId', 'name cropType')
+      .populate('farmIds', 'name cropType cumulativeYieldKg stockAdjustment soldOutsideKg yieldUnit area')
       .skip((page - 1) * limit)
       .limit(parseInt(limit))
       .sort({ createdAt: -1 });
 
-    res.json({
-      products,
-      page: parseInt(page),
-      pages: Math.ceil(total / limit),
-      total
+    const productsWithStock = products.map(p => {
+      const pObj = p.toObject();
+      pObj.totalAvailableKg = calcTotalStock(pObj.farmIds || [], getLegacySoldQty(pObj));
+      return pObj;
     });
+
+    res.json({ products: productsWithStock, page: parseInt(page), pages: Math.ceil(total / limit), total });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Lỗi server', error: error.message });
@@ -131,28 +162,30 @@ export const getMyProducts = async (req, res) => {
 // @access  Private/Farmer
 export const createProduct = async (req, res) => {
   try {
-    const { farmId, productName, category, price, unit, description, certification, productionProcess, harvestDate, expiryDate } = req.body;
+    let { farmIds, productName, category, price, unit, description, certification, productionProcess, harvestDate, expiryDate } = req.body;
 
-    // Kiểm tra farm thuộc về farmer này
-    const farm = await Farm.findById(farmId);
-    if (!farm) {
-      return res.status(404).json({ message: 'Không tìm thấy thửa đất' });
+    // Hỗ trợ nhận farmIds dạng JSON string (khi gửi qua FormData)
+    if (typeof farmIds === 'string') {
+      try { farmIds = JSON.parse(farmIds); } catch (_) { farmIds = [farmIds]; }
     }
 
-    if (farm.ownerId.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ message: 'Thửa đất này không thuộc về bạn' });
+    // Validate farmIds: tất cả phải thuộc về farmer này
+    let farms;
+    try {
+      farms = await validateFarmIds(farmIds, req.user._id);
+    } catch (err) {
+      return res.status(400).json({ message: err.message });
     }
 
-    // Ràng buộc 1 thửa đất = 1 bài đăng sản phẩm đang active
-    // (cho phép tạo lại nếu bài trước bị từ chối hoặc đã bán hết)
-    const existingActive = await Product.findOne({
-      farmId,
+    // Ràng buộc: mỗi thửa chỉ được xuất hiện trong 1 sản phẩm active
+    const conflictProduct = await Product.findOne({
+      farmIds: { $in: farmIds },
       status: { $in: ['pending', 'approved'] }
     });
-    if (existingActive) {
+    if (conflictProduct) {
       return res.status(400).json({
-        message: `Thửa đất này đã có bài đăng sản phẩm đang chờ duyệt/đã được duyệt. Vui lòng chỉnh sửa bài đó thay vì tạo mới.`,
-        existingProductId: existingActive._id
+        message: `Một hoặc nhiều thửa đã có bài đăng sản phẩm đang hoạt động. Vui lòng chỉnh sửa bài đó thay vì tạo mới.`,
+        existingProductId: conflictProduct._id
       });
     }
 
@@ -172,11 +205,11 @@ export const createProduct = async (req, res) => {
       }
       images = await Promise.all(
         req.files.map(file => uploadImageToCloudinary(file.buffer, 'products'))
-      ); // mỗi phần tử: { url, public_id }
+      );
     }
 
     const product = await Product.create({
-      farmId,
+      farmIds,
       farmerId: req.user._id,
       productName,
       category,
@@ -192,7 +225,7 @@ export const createProduct = async (req, res) => {
     });
 
     const populatedProduct = await Product.findById(product._id)
-      .populate('farmId', 'name cropType')
+      .populate('farmIds', 'name cropType')
       .populate('farmerId', 'fullName');
 
     res.status(201).json(populatedProduct);
@@ -217,8 +250,37 @@ export const updateProduct = async (req, res) => {
       return res.status(403).json({ message: 'Không có quyền cập nhật sản phẩm này' });
     }
 
-    // ── Tính ảnh giữ lại vs ảnh bị xóa dựa trên keepImages từ client ──
-    // keepImages: JSON array of { url, public_id } — ảnh cũ client muốn giữ lại
+    // ── Xử lý cập nhật farmIds nếu farmer gửi lên ──────────────────────────
+    if (req.body.farmIds && req.user.role === 'farmer') {
+      let newFarmIds = req.body.farmIds;
+      if (typeof newFarmIds === 'string') {
+        try { newFarmIds = JSON.parse(newFarmIds); } catch (_) { newFarmIds = [newFarmIds]; }
+      }
+
+      // Validate ownership
+      try {
+        await validateFarmIds(newFarmIds, req.user._id);
+      } catch (err) {
+        return res.status(400).json({ message: err.message });
+      }
+
+      // Kiểm tra trùng thửa với sản phẩm KHÁC (bỏ qua chính bài đang sửa)
+      const conflictProduct = await Product.findOne({
+        _id: { $ne: req.params.id }, // ← Loại trừ chính product đang sửa
+        farmIds: { $in: newFarmIds },
+        status: { $in: ['pending', 'approved'] }
+      });
+      if (conflictProduct) {
+        return res.status(400).json({
+          message: `Một hoặc nhiều thửa đã có bài đăng sản phẩm đang hoạt động khác.`,
+          existingProductId: conflictProduct._id
+        });
+      }
+
+      req.body.farmIds = newFarmIds;
+    }
+
+    // ── Tính ảnh giữ lại vs ảnh bị xóa dựa trên keepImages từ client ─────────
     let updatedImages = [...(product.images || [])];
 
     if (req.body.keepImages !== undefined) {
@@ -230,12 +292,12 @@ export const updateProduct = async (req, res) => {
         old => !keepImages.some(k => k.url === old.url)
       );
 
-      // Xóa trên Cloudinary — fail-fast: nếu fail thì throw, không update DB
+      // Xóa trên Cloudinary
       await Promise.all(
         toDelete.map(img => deleteImageFromCloudinary(img.public_id))
       );
 
-      updatedImages = keepImages; // chỉ giữ ảnh client chọn
+      updatedImages = keepImages;
       delete req.body.keepImages;
     }
 
@@ -261,8 +323,7 @@ export const updateProduct = async (req, res) => {
 
     req.body.images = updatedImages;
 
-
-    // Reset status về pending nếu farmer sửa
+    // Reset status về pending nếu farmer sửa (cần duyệt lại)
     if (req.user.role === 'farmer') {
       req.body.status = 'pending';
     }
@@ -271,7 +332,7 @@ export const updateProduct = async (req, res) => {
       req.params.id,
       req.body,
       { new: true }
-    ).populate('farmId', 'name cropType').populate('farmerId', 'fullName');
+    ).populate('farmIds', 'name cropType').populate('farmerId', 'fullName');
 
     res.json(updatedProduct);
   } catch (error) {
@@ -317,21 +378,16 @@ export const deleteProduct = async (req, res) => {
 export const getPendingProducts = async (req, res) => {
   try {
     const { page = 1, limit = 10 } = req.query;
-
     const total = await Product.countDocuments({ status: 'pending' });
     const products = await Product.find({ status: 'pending' })
       .populate('farmerId', 'fullName phone')
-      .populate('farmId', 'name cropType')
+      .populate('farmIds', 'name cropType')
       .skip((page - 1) * limit)
       .limit(parseInt(limit))
       .sort({ createdAt: -1 });
 
-    res.json({
-      products,
-      page: parseInt(page),
-      pages: Math.ceil(total / limit),
-      total
-    });
+    const normalized = products.map(p => p.toObject());
+    res.json({ products: normalized, page: parseInt(page), pages: Math.ceil(total / limit), total });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Lỗi server', error: error.message });
@@ -389,7 +445,7 @@ export const trackInterest = async (req, res) => {
   }
 };
 
-// @desc    Ghi nhận đã bán xuất kho (Nông dân thao tác)
+// @desc    Ghi nhận đã bán — hỗ trợ phân bổ nhiều thửa (legacy 1 thửa vẫn hoạt động)
 // @route   POST /api/products/:id/record-sale
 // @access  Private/Farmer
 export const recordSale = async (req, res) => {
@@ -400,7 +456,9 @@ export const recordSale = async (req, res) => {
       return res.status(400).json({ message: 'Số lượng xuất bán không hợp lệ' });
     }
 
-    const product = await Product.findById(req.params.id);
+    const product = await Product.findById(req.params.id)
+      .populate('farmIds', 'name cumulativeYieldKg stockAdjustment soldOutsideKg ownerId');
+
     if (!product) {
       return res.status(404).json({ message: 'Không tìm thấy sản phẩm' });
     }
@@ -409,6 +467,7 @@ export const recordSale = async (req, res) => {
       return res.status(403).json({ message: 'Không có quyền thao tác trên sản phẩm này' });
     }
 
+    // Cập nhật soldQuantity tổng trên Product (giữ để dashboard thống kê)
     product.soldQuantity = (product.soldQuantity || 0) + saleAmount;
     await product.save();
 
@@ -419,3 +478,102 @@ export const recordSale = async (req, res) => {
   }
 };
 
+// @desc    Ghi nhận đã bán — phân bổ kho nhiều thửa (endpoint chính cho logic mới)
+// @route   POST /api/products/:id/record-sale-multi
+// @access  Private/Farmer
+export const recordSaleMulti = async (req, res) => {
+  try {
+    // farmAllocations: [{ farmId: "...", amount: 3000 }, { farmId: "...", amount: 1000 }]
+    const { farmAllocations } = req.body;
+
+    if (!farmAllocations || !Array.isArray(farmAllocations) || farmAllocations.length === 0) {
+      return res.status(400).json({ message: 'Vui lòng cung cấp dữ liệu phân bổ kho (farmAllocations)' });
+    }
+
+    const product = await Product.findById(req.params.id)
+      .populate('farmIds', 'name cumulativeYieldKg stockAdjustment soldOutsideKg ownerId');
+
+    if (!product) {
+      return res.status(404).json({ message: 'Không tìm thấy sản phẩm' });
+    }
+
+    if (product.farmerId.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Không có quyền thao tác trên sản phẩm này' });
+    }
+
+    const productFarmIds = (product.farmIds || []).map(f => f._id.toString());
+
+    // Validate từng phân bổ
+    let totalSaleAmount = 0;
+    for (const alloc of farmAllocations) {
+      const amount = Number(alloc.amount);
+      if (isNaN(amount) || amount < 0) {
+        return res.status(400).json({ message: `Số lượng không hợp lệ cho thửa ${alloc.farmId}` });
+      }
+      if (amount === 0) continue; // Bỏ qua thửa phân bổ 0
+
+      // Kiểm tra farmId trong allocation có thuộc về sản phẩm này không
+      if (!productFarmIds.includes(alloc.farmId.toString())) {
+        return res.status(400).json({ message: `Thửa ${alloc.farmId} không thuộc về sản phẩm này` });
+      }
+
+      // Kiểm tra không vượt tồn kho từng thửa
+      const farm = product.farmIds.find(f => f._id.toString() === alloc.farmId.toString());
+      if (farm) {
+        const farmStock = calcFarmStock(farm);
+        if (amount > farmStock) {
+          return res.status(400).json({
+            message: `Số lượng bán từ thửa "${farm.name}" (${amount} kg) vượt quá tồn kho khả dụng (${farmStock} kg)`
+          });
+        }
+      }
+
+      totalSaleAmount += amount;
+    }
+
+    if (totalSaleAmount <= 0) {
+      return res.status(400).json({ message: 'Tổng số lượng bán phải lớn hơn 0' });
+    }
+
+    // Thực hiện trừ kho từng thửa một cách atomic
+    const stockHistoryDocs = [];
+    for (const alloc of farmAllocations) {
+      const amount = Number(alloc.amount);
+      if (amount <= 0) continue;
+
+      // Atomic increment soldOutsideKg của từng Farm
+      await Farm.findByIdAndUpdate(
+        alloc.farmId,
+        { $inc: { soldOutsideKg: amount } },
+        { new: true }
+      );
+
+      // Chuẩn bị log lịch sử
+      stockHistoryDocs.push({
+        farmId: alloc.farmId,
+        farmerId: req.user._id,
+        type: 'sale',
+        amount: amount,
+        note: `Bán qua sản phẩm "${product.productName}" — phân bổ ${amount} kg từ thửa này`
+      });
+    }
+
+    // Lưu lịch sử kho song song
+    if (stockHistoryDocs.length > 0) {
+      await StockHistory.insertMany(stockHistoryDocs);
+    }
+
+    // Cập nhật tổng soldQuantity trên Product (dùng cho dashboard thống kê)
+    product.soldQuantity = (product.soldQuantity || 0) + totalSaleAmount;
+    await product.save();
+
+    res.json({
+      message: `Đã ghi nhận bán ${totalSaleAmount} kg thành công`,
+      totalSaleAmount,
+      allocations: farmAllocations
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+};

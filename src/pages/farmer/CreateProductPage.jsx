@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { FiUpload, FiX, FiSave, FiArrowLeft } from 'react-icons/fi';
+import { FiUpload, FiX, FiSave, FiArrowLeft, FiCheckSquare, FiSquare, FiInfo } from 'react-icons/fi';
 import { productAPI, farmAPI } from '../../services/api';
 import Loading from '../../components/common/Loading';
 import toast from 'react-hot-toast';
@@ -14,9 +14,8 @@ const CreateProductPage = () => {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [farms, setFarms] = useState([]);
-  // Map farmId → sản phẩm đang active (pending/approved) — dùng enforce 1-farm-1-product
-  const [activeProdByFarm, setActiveProdByFarm] = useState({});
-  const [yieldInfo, setYieldInfo] = useState(null);
+  // Map farmId → sản phẩm đang active của thửa đó (để cảnh báo trùng)
+  const [occupiedFarmIds, setOccupiedFarmIds] = useState(new Set());
 
   // Ảnh mới người dùng chọn thêm (File objects)
   const [newImages, setNewImages] = useState([]);
@@ -28,7 +27,7 @@ const CreateProductPage = () => {
   const [keepImages, setKeepImages] = useState([]);
 
   const [formData, setFormData] = useState({
-    farmId: '',
+    selectedFarmIds: [],   // Mảng id các thửa đã chọn (cốt lõi mới)
     productName: '',
     category: '',
     price: '',
@@ -54,6 +53,20 @@ const CreateProductPage = () => {
     return iso.slice(0, 10);
   };
 
+  // Tính stock khả dụng cho 1 thửa
+  const calcFarmStock = (farm) => {
+    const cumulative = farm.cumulativeYieldKg || 0;
+    const adjustment = farm.stockAdjustment || 0;
+    const soldOutside = farm.soldOutsideKg || 0;
+    return Math.max(0, cumulative + adjustment - soldOutside);
+  };
+
+  // Tổng stock từ các thửa đã chọn
+  const totalSelectedStock = formData.selectedFarmIds.reduce((sum, fid) => {
+    const farm = farms.find(f => f._id === fid);
+    return sum + (farm ? calcFarmStock(farm) : 0);
+  }, 0);
+
   useEffect(() => {
     loadAll();
   }, [productId]);
@@ -69,32 +82,32 @@ const CreateProductPage = () => {
       );
       setFarms(approvedFarms);
 
-      // 2. Tính sản lượng đã đăng bán và map active products theo farm
-      let listedMap = {};
-      let activeMap = {};  // farmId → product object (pending/approved)
+      // 2. Lấy danh sách thửa đang bị "khóa" bởi các sản phẩm active khác
       try {
         const prodRes = await productAPI.getMyProducts({ limit: 200 });
         const prods = prodRes.data?.products || [];
+        const occupied = new Set();
         prods.forEach(p => {
-          if (p.farmId && p.status !== 'rejected') {
-            const fid = p.farmId?._id || p.farmId;
-            listedMap[fid] = (listedMap[fid] || 0) + (Number(p.quantity) || 0);
-            // Chỉ track pending/approved cho ràng buộc 1-farm-1-product
-            if (p.status === 'pending' || p.status === 'approved') {
-              activeMap[fid] = p;
-            }
+          // Bỏ qua chính sản phẩm đang sửa để không tự block mình
+          if (isEditMode && p._id === productId) return;
+          if (p.status === 'pending' || p.status === 'approved') {
+            (p.farmIds || []).forEach(f => {
+              const fid = f._id || f;
+              occupied.add(fid.toString());
+            });
           }
         });
-        setListedQtyByFarm(listedMap);
-        setActiveProdByFarm(activeMap);
+        setOccupiedFarmIds(occupied);
       } catch (_) { /* không chặn load đất */ }
 
+      // 3. Nếu edit mode: load thông tin sản phẩm hiện tại
       if (isEditMode) {
         const prodRes = await productAPI.getById(productId);
         const p = prodRes.data;
-        const fid = p.farmId?._id || p.farmId || '';
+        const currentFarmIds = (p.farmIds || []).map(f => f._id || f);
+
         setFormData({
-          farmId: fid,
+          selectedFarmIds: currentFarmIds,
           productName: p.productName || '',
           category: p.category || '',
           price: p.price ?? '',
@@ -107,53 +120,25 @@ const CreateProductPage = () => {
         });
         setExistingImages(p.images || []);
         setKeepImages(p.images || []); // mặc định giữ hết
-        // Hiển thị yield info của thửa đất gốc khi ở mode sửa
-        const linkedFarm = approvedFarms.find(f => f._id === fid);
-        if (linkedFarm) buildYieldInfo(linkedFarm);
-      } else {
-        // Tự chọn thửa đất đầu tiên
-        if (approvedFarms.length > 0) {
-          const first = approvedFarms[0];
-          setFormData(prev => ({ ...prev, farmId: first._id }));
-          buildYieldInfo(first);
-        }
       }
     } catch (error) {
-      console.error('Error loading data:', error);
+      console.error('Lỗi tải dữ liệu:', error);
       toast.error('Không thể tải dữ liệu');
     } finally {
       setLoading(false);
     }
   };
 
-  // Xây dựng yieldInfo khi chọn thửa đất
-  const buildYieldInfo = (farm) => {
-    if (!farm || farm.status !== 'harvested' || !farm.actualYield) {
-      setYieldInfo(null);
-      return;
-    }
-    const totalKg = farm.yieldInKg || farm.actualYield;
-    setYieldInfo({
-      actualYield: farm.actualYield,
-      yieldUnit: farm.yieldUnit || 'kg',
-      yieldInKg: totalKg,
+  // Toggle chọn/bỏ chọn thửa đất
+  const handleToggleFarm = (farmId) => {
+    setFormData(prev => {
+      const isSelected = prev.selectedFarmIds.includes(farmId);
+      if (isSelected) {
+        return { ...prev, selectedFarmIds: prev.selectedFarmIds.filter(id => id !== farmId) };
+      } else {
+        return { ...prev, selectedFarmIds: [...prev.selectedFarmIds, farmId] };
+      }
     });
-    // Tự điền đơn vị và ngày thu hoạch vào form (chỉ khi tạo mới)
-    if (!isEditMode) {
-      setFormData(prev => ({
-        ...prev,
-        unit: farm.yieldUnit || prev.unit,
-        harvestDate: farm.actualHarvestDate
-          ? toDateInput(farm.actualHarvestDate) : prev.harvestDate,
-      }));
-    }
-  };
-
-  // Handler khi nông dân đổi thửa đất
-  const handleFarmChange = (farmId) => {
-    setFormData(prev => ({ ...prev, farmId }));
-    const farm = farms.find(f => f._id === farmId);
-    buildYieldInfo(farm);
   };
 
   /* ── Image handlers ── */
@@ -164,7 +149,6 @@ const CreateProductPage = () => {
       toast.error('Tối đa 5 hình ảnh');
       return;
     }
-    // Validate client-side
     const invalid = files.find(f => !f.type.startsWith('image/'));
     if (invalid) { toast.error(`File "${invalid.name}" không phải ảnh`); return; }
     const tooBig = files.find(f => f.size > 5 * 1024 * 1024);
@@ -190,8 +174,8 @@ const CreateProductPage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!formData.farmId) {
-      toast.error('Vui lòng chọn thửa đất');
+    if (formData.selectedFarmIds.length === 0) {
+      toast.error('Vui lòng chọn ít nhất 1 thửa đất');
       return;
     }
     if (!formData.productName || !formData.price) {
@@ -199,13 +183,25 @@ const CreateProductPage = () => {
       return;
     }
 
+    // Kiểm tra có thửa nào đang bị khóa không (cảnh báo lần cuối)
+    const blockedFarms = formData.selectedFarmIds.filter(id => occupiedFarmIds.has(id));
+    if (blockedFarms.length > 0) {
+      toast.error('Một hoặc nhiều thửa đã có bài đăng đang hoạt động. Vui lòng bỏ chọn chúng.');
+      return;
+    }
+
     try {
       setSubmitting(true);
 
       const submitData = new FormData();
-      Object.keys(formData).forEach(key => {
-        if (formData[key] !== '' && formData[key] !== null && formData[key] !== undefined) {
-          submitData.append(key, formData[key]);
+      // Gửi farmIds dưới dạng JSON string (FormData không hỗ trợ array trực tiếp)
+      submitData.append('farmIds', JSON.stringify(formData.selectedFarmIds));
+
+      // Các field còn lại (bỏ qua selectedFarmIds vì đã xử lý riêng)
+      const { selectedFarmIds, ...otherFields } = formData;
+      Object.keys(otherFields).forEach(key => {
+        if (otherFields[key] !== '' && otherFields[key] !== null && otherFields[key] !== undefined) {
+          submitData.append(key, otherFields[key]);
         }
       });
 
@@ -224,7 +220,7 @@ const CreateProductPage = () => {
 
       navigate('/farmer/products');
     } catch (error) {
-      console.error('Error saving product:', error);
+      console.error('Lỗi lưu sản phẩm:', error);
       toast.error(error.response?.data?.message || 'Có lỗi xảy ra');
     } finally {
       setSubmitting(false);
@@ -236,6 +232,9 @@ const CreateProductPage = () => {
   }
 
   const totalImages = keepImages.length + newImages.length;
+
+  // Kiểm tra có thửa nào được chọn mà đang bị khóa không
+  const hasBlockedSelected = formData.selectedFarmIds.some(id => occupiedFarmIds.has(id));
 
   return (
     <div className="p-6">
@@ -261,116 +260,119 @@ const CreateProductPage = () => {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Farm Selection */}
+          {/* ── Chọn Thửa Đất (Multi-select) ── */}
           <div className="card">
-            <h3 className="font-semibold text-gray-900 mb-4">Thửa đất sản xuất</h3>
+            <h3 className="font-semibold text-gray-900 mb-1">Thửa đất sản xuất</h3>
+            <p className="text-sm text-gray-500 mb-4">
+              Chọn một hoặc nhiều thửa đất cung cấp hàng cho sản phẩm này.
+              Tổng sản lượng sẽ được cộng gộp tự động.
+            </p>
+
             {farms.length > 0 ? (
               <>
-                <select
-                  value={formData.farmId}
-                  onChange={(e) => handleFarmChange(e.target.value)}
-                  className="input-field"
-                  required
-                >
-                  <option value="">Chọn thửa đất</option>
-                  {farms.map(farm => (
-                    <option key={farm._id} value={farm._id}>
-                      {farm.name} — {farm.area?.toLocaleString()} m² ({farm.cropType || 'Chưa có loại cây'})
-                      {farm.status === 'harvested' && farm.actualYield > 0 ? ` ✔ Đã thu hoạch: ${farm.actualYield} ${farm.yieldUnit}` : ''}
-                    </option>
-                  ))}
-                </select>
+                <div className="space-y-2">
+                  {farms.map(farm => {
+                    const isSelected = formData.selectedFarmIds.includes(farm._id);
+                    const isOccupied = occupiedFarmIds.has(farm._id);
+                    const farmStock = calcFarmStock(farm);
+                    const hasYield = (farm.cumulativeYieldKg || 0) > 0;
 
-
-                {/* Banner: cập nhật theo chế độ tạo mới / sửa */}
-                {formData.farmId && (() => {
-                  const selFarm = farms.find(f => f._id === formData.farmId);
-
-                  // ─── Chế độ TẠO MỚI ───────────────────────────────────────
-                  if (!isEditMode) {
-                    // ① Kiểm tra 1-farm-1-product: farm đã có bài pending/approved
-                    const existingProd = activeProdByFarm[formData.farmId];
-                    if (existingProd) {
-                      return (
-                        <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm">
-                          <p className="font-semibold text-red-700 mb-1">🚫 Thửa đất này đã có bài đăng sản phẩm</p>
-                          <p className="text-red-600 mb-2">
-                            Mỗi thửa đất chỉ được phép có 1 bài đăng đang hoạt động.
-                            Vui lòng chỉnh sửa bài đăng hiện tại thay vì tạo mới.
-                          </p>
-                          <a
-                            href={`/farmer/products/${existingProd._id}/edit`}
-                            className="inline-block text-xs bg-red-600 text-white px-3 py-1 rounded-lg hover:bg-red-700 transition-colors"
-                          >
-                            → Đến bài đăng "{existingProd.productName}"
-                          </a>
-                        </div>
-                      );
-                    }
-
-                    // ② Sản lượng live (thửa đã thu hoạch)
-                    if (yieldInfo) {
-                      return (
-                        <div className="mt-3 rounded-lg border border-green-200 bg-green-50 p-3 text-sm space-y-1">
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">🌾 Sản lượng vụ này:</span>
-                            <span className="font-semibold text-green-800">
-                              {yieldInfo.actualYield.toLocaleString()} {yieldInfo.yieldUnit}
-                              {yieldInfo.yieldUnit === 'tấn' && <span className="ml-1 text-xs text-green-600 font-normal">({yieldInfo.yieldInKg.toLocaleString()} kg)</span>}
-                            </span>
-                          </div>
-                        </div>
-                      );
-                    }
-
-                    // ③ Thửa chưa thu hoạch
-                    if (selFarm && selFarm.status !== 'harvested') {
-                      return (
-                        <div className="mt-3 rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-800">
-                          ⚠️ Thửa đất này chưa thu hoạch ({selFarm.status === 'planting' ? 'đang gieo trồng' : selFarm.status === 'growing' ? 'đang phát triển' : selFarm.status === 'harvesting' ? 'sắp thu hoạch' : selFarm.status}).
-                          Vui lòng nhập số lượng thủ công.
-                        </div>
-                      );
-                    }
-                  }
-
-                  // ─── Chế độ SỬA ───────────────────────────────────────────
-                  if (isEditMode && selFarm) {
-                    const cumulative = selFarm.cumulativeYieldKg || 0;
-                    if (cumulative > 0) {
-                      const listed = Number(formData.quantity) || 0;
-                      const adj = selFarm.stockAdjustment || 0;
-                      const stock = cumulative + adj - listed;
-                      return (
-                        <div className="mt-3 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm space-y-1">
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">🏪 Kho tích lũy (tổng các vụ):</span>
-                            <span className="font-semibold text-blue-800">{cumulative.toLocaleString()} kg</span>
-                          </div>
-                          {adj !== 0 && (
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">🔧 Điều chỉnh hao hụt:</span>
-                              <span className={adj < 0 ? 'text-red-500' : 'text-green-600'}>{adj > 0 ? '+' : ''}{adj.toLocaleString()} kg</span>
-                            </div>
+                    return (
+                      <label
+                        key={farm._id}
+                        className={`
+                          flex items-start gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all
+                          ${isOccupied
+                            ? 'border-red-200 bg-red-50 cursor-not-allowed opacity-70'
+                            : isSelected
+                              ? 'border-primary-500 bg-primary-50'
+                              : 'border-gray-200 hover:border-gray-300 bg-white'
+                          }
+                        `}
+                      >
+                        <div className="mt-0.5 flex-shrink-0">
+                          {isOccupied ? (
+                            <span className="text-red-400 text-lg">🚫</span>
+                          ) : isSelected ? (
+                            <FiCheckSquare className="text-primary-600 text-xl" />
+                          ) : (
+                            <FiSquare className="text-gray-400 text-xl" />
                           )}
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">📦 Đang đăng bán:</span>
-                            <span className="text-blue-600 font-medium">{listed.toLocaleString()} {formData.unit}</span>
+                        </div>
+                        <input
+                          type="checkbox"
+                          className="hidden"
+                          checked={isSelected}
+                          disabled={isOccupied}
+                          onChange={() => !isOccupied && handleToggleFarm(farm._id)}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="font-medium text-gray-900 text-sm">{farm.name}</span>
+                            <span className="text-xs text-gray-400">({farm.area?.toLocaleString()} m²)</span>
+                            {farm.cropType && (
+                              <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
+                                {farm.cropType}
+                              </span>
+                            )}
+                            {isOccupied && (
+                              <span className="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-medium">
+                                Đã có bài đăng
+                              </span>
+                            )}
                           </div>
-                          <div className="border-t border-blue-200 pt-1 flex justify-between">
-                            <span className="font-medium text-gray-700">📊 Tồn kho còn lại:</span>
-                            <span className={`font-bold ${stock < 0 ? 'text-red-600' : stock === 0 ? 'text-orange-600' : 'text-green-700'}`}>
-                              {stock.toLocaleString()} kg
-                            </span>
+                          <div className="mt-1 flex items-center gap-3 text-xs text-gray-500">
+                            {hasYield ? (
+                              <>
+                                <span>🌾 Tích lũy: <strong className="text-gray-700">{(farm.cumulativeYieldKg || 0).toLocaleString()} kg</strong></span>
+                                <span>📦 Khả dụng: <strong className={farmStock > 0 ? 'text-green-700' : 'text-gray-400'}>{farmStock.toLocaleString()} kg</strong></span>
+                              </>
+                            ) : (
+                              <span className="text-yellow-600">⏳ Chưa có sản lượng — có thể đăng trước khi thu hoạch</span>
+                            )}
                           </div>
                         </div>
-                      );
-                    }
-                  }
+                      </label>
+                    );
+                  })}
+                </div>
 
-                  return null;
-                })()}
+                {/* Tổng sản lượng khả dụng */}
+                {formData.selectedFarmIds.length > 0 && (
+                  <div className="mt-4 p-3 rounded-xl bg-green-50 border border-green-200">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-green-800">
+                        {formData.selectedFarmIds.length > 1
+                          ? `🧮 Tổng sản lượng từ ${formData.selectedFarmIds.length} thửa đã chọn:`
+                          : '📦 Sản lượng khả dụng:'
+                        }
+                      </span>
+                      <span className="text-lg font-bold text-green-700">
+                        {totalSelectedStock.toLocaleString()} kg
+                      </span>
+                    </div>
+                    {formData.selectedFarmIds.length > 1 && (
+                      <div className="mt-1.5 space-y-0.5">
+                        {formData.selectedFarmIds.map(fid => {
+                          const farm = farms.find(f => f._id === fid);
+                          if (!farm) return null;
+                          return (
+                            <div key={fid} className="flex justify-between text-xs text-green-700">
+                              <span>{farm.name}</span>
+                              <span>{calcFarmStock(farm).toLocaleString()} kg</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
 
+                {hasBlockedSelected && (
+                  <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+                    ⛔ Một hoặc nhiều thửa đang được chọn đã có bài đăng sản phẩm hoạt động. Vui lòng bỏ chọn chúng.
+                  </div>
+                )}
               </>
             ) : (
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-sm text-yellow-800">
@@ -380,7 +382,7 @@ const CreateProductPage = () => {
             )}
           </div>
 
-          {/* Product Info */}
+          {/* ── Thông tin sản phẩm ── */}
           <div className="card">
             <h3 className="font-semibold text-gray-900 mb-4">Thông tin sản phẩm</h3>
             <div className="space-y-4">
@@ -393,9 +395,15 @@ const CreateProductPage = () => {
                   value={formData.productName}
                   onChange={(e) => setFormData({ ...formData, productName: e.target.value })}
                   className="input-field"
-                  placeholder="VD: Gạo tám thơm Kiến Xương"
+                  placeholder="VD: Gạo Bắc Hương Thái Bình"
                   required
                 />
+                {formData.selectedFarmIds.length > 1 && (
+                  <p className="mt-1 text-xs text-blue-600 flex items-center gap-1">
+                    <FiInfo size={12} />
+                    Gợi ý: tên nên phản ánh loại nông sản chính, người mua sẽ thấy tổng {totalSelectedStock.toLocaleString()} kg từ {formData.selectedFarmIds.length} thửa.
+                  </p>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -448,21 +456,9 @@ const CreateProductPage = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Tồn kho</label>
-                  {(() => {
-                    const farm = farms.find(f => f._id === formData.farmId);
-                    if (!farm) return <div className="input-field bg-gray-100 text-gray-500">—</div>;
-                    const prod = activeProdByFarm[farm._id];
-                    const cumulative = farm.cumulativeYieldKg || 0;
-                    const adjustment = farm.stockAdjustment || 0;
-                    const soldOutside = farm.soldOutsideKg || 0;
-                    const soldProduct = prod?.soldQuantity || 0;
-                    const stock = cumulative + adjustment - soldOutside - soldProduct;
-                    return (
-                      <div className="input-field bg-gray-50 text-gray-900 font-medium cursor-not-allowed">
-                        {stock > 0 ? stock.toLocaleString() : 0} kg
-                      </div>
-                    );
-                  })()}
+                  <div className="input-field bg-gray-50 text-gray-900 font-medium cursor-not-allowed">
+                    {totalSelectedStock > 0 ? `${totalSelectedStock.toLocaleString()} kg` : '—'}
+                  </div>
                 </div>
               </div>
 
@@ -511,7 +507,7 @@ const CreateProductPage = () => {
             </div>
           </div>
 
-          {/* Images */}
+          {/* ── Hình ảnh ── */}
           <div className="card">
             <h3 className="font-semibold text-gray-900 mb-1">Hình ảnh sản phẩm (tối đa 5)</h3>
             <p className="text-xs text-gray-500 mb-4">
@@ -571,7 +567,7 @@ const CreateProductPage = () => {
             </div>
           </div>
 
-          {/* Submit */}
+          {/* ── Submit ── */}
           <div className="flex space-x-4">
             <Button
               type="button"
@@ -583,7 +579,12 @@ const CreateProductPage = () => {
             </Button>
             <Button
               type="submit"
-              disabled={submitting || farms.length === 0 || (!isEditMode && !!activeProdByFarm[formData.farmId])}
+              disabled={
+                submitting ||
+                farms.length === 0 ||
+                formData.selectedFarmIds.length === 0 ||
+                hasBlockedSelected
+              }
               loading={submitting}
               icon={FiSave}
               variant="primary"

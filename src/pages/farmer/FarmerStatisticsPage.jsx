@@ -56,7 +56,7 @@ const FarmerStatisticsPage = () => {
         // 2. Lọc Sản phẩm
         const fProducts = selectedFarmId === 'all'
             ? products
-            : products.filter(p => p.farm?._id === selectedFarmId || p.farmId?._id === selectedFarmId || p.farmId === selectedFarmId);
+            : products.filter(p => (p.farmIds || []).some(f => (f._id || f).toString() === selectedFarmId));
 
         // 3. Lọc Lịch sử thu hoạch
         let fHistory = history;
@@ -118,6 +118,51 @@ const FarmerStatisticsPage = () => {
         const years = new Set(history.map(h => new Date(h.harvestDate).getFullYear()));
         return Array.from(years).sort((a, b) => b - a); // Mới nhất lên trên
     }, [history]);
+
+    // ----- CHART 3: Sản lượng theo quý -----
+    // Nhóm filteredHistory theo field `quarter` (tự động tính bởi backend, format Q1/YYYY...Q4/YYYY)
+    const seasonChartData = useMemo(() => {
+        const bySeason = filteredHistory
+            .filter(h => h.quarter && h.quarter !== 'Hủy vụ')
+            .reduce((acc, h) => {
+                const key = h.quarter;
+                // Dùng harvestDate của bản ghi đầu tiên trong quý để sắp xếp
+                if (!acc[key]) acc[key] = { name: key, yield: 0, _sortKey: new Date(h.harvestDate).getTime() };
+                acc[key].yield += (h.yieldInKg || 0);
+                return acc;
+            }, {});
+        return Object.values(bySeason).sort((a, b) => a._sortKey - b._sortKey);
+    }, [filteredHistory]);
+
+    // ----- CHART 4: So sánh 2 quý gần nhất theo từng thửa đất -----
+    const seasonCompareData = useMemo(() => {
+        const validHistory = filteredHistory.filter(h => h.quarter && h.quarter !== 'Hủy vụ');
+
+        // Tìm 2 quý gần nhất (distinct) — sắp xếp giảm dần theo ngày thu hoạch
+        const seen = new Set();
+        const recentSeasons = [];
+        [...validHistory]
+            .sort((a, b) => new Date(b.harvestDate) - new Date(a.harvestDate))
+            .forEach(h => {
+                if (!seen.has(h.quarter)) { seen.add(h.quarter); recentSeasons.push(h.quarter); }
+            });
+
+        if (recentSeasons.length < 2) return { data: [], s1: null, s2: null };
+
+        const [s1, s2] = recentSeasons; // s1 = quý mới nhất, s2 = quý cũ hơn
+
+        // Nhóm theo thửa đất, mỗi thửa có yield của s1 và s2
+        const byFarm = {};
+        validHistory
+            .filter(h => h.quarter === s1 || h.quarter === s2)
+            .forEach(h => {
+                const farmName = h.farmId?.name || 'Không rõ';
+                if (!byFarm[farmName]) byFarm[farmName] = { name: farmName, [s1]: 0, [s2]: 0 };
+                byFarm[farmName][h.quarter] = (byFarm[farmName][h.quarter] || 0) + (h.yieldInKg || 0);
+            });
+
+        return { data: Object.values(byFarm), s1, s2 };
+    }, [filteredHistory]);
 
     const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#8b5cf6', '#ef4444'];
     const formatNumber = (num) => new Intl.NumberFormat('vi-VN').format(num);
@@ -308,7 +353,97 @@ const FarmerStatisticsPage = () => {
 
             </div>
 
-            {/* ROW 3: BẢNG XẾP HẠNG THỬA ĐẤT (Chỉ hiện khi chọn Tất cả) */}
+            {/* ROW 3: Biểu đồ Vụ Mùa — chỉ hiện khi có ít nhất 1 vụ hợp lệ */}
+            {seasonChartData.length > 0 && (
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-8">
+
+                    {/* CHART 3: Sản lượng theo vụ */}
+                    <div className="card shadow-sm border border-gray-100 p-6 rounded-2xl">
+                        <div className="flex items-center justify-between mb-6">
+                            <h3 className="text-lg font-bold text-gray-900 flex items-center">
+                                <FiPieChart className="mr-2 text-primary-500" />
+                                Sản Lượng Theo Quý
+                            </h3>
+                            <span className="text-xs bg-blue-50 text-blue-600 px-2 py-1 rounded font-medium">
+                                {selectedYear === 'all' ? 'Toàn bộ lịch sử' : `Năm ${selectedYear}`}
+                            </span>
+                        </div>
+                        <div className="h-72 w-full">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={seasonChartData} margin={{ top: 10, right: 10, left: -20, bottom: 35 }}>
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
+                                    <XAxis
+                                        dataKey="name"
+                                        tick={{ fill: '#6B7280', fontSize: 11 }}
+                                        axisLine={false} tickLine={false}
+                                        angle={-15} textAnchor="end"
+                                    />
+                                    <YAxis tick={{ fill: '#6B7280', fontSize: 12 }} axisLine={false} tickLine={false} />
+                                    <Tooltip
+                                        contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                                        formatter={(value) => [`${formatNumber(value)} kg`, 'Sản lượng']}
+                                        labelFormatter={(label) => `Quý: ${label}`}
+                                    />
+                                    <Bar dataKey="yield" radius={[6, 6, 0, 0]} maxBarSize={60}>
+                                        {seasonChartData.map((_, index) => (
+                                            <Cell key={`cell-season-${index}`} fill={COLORS[index % COLORS.length]} />
+                                        ))}
+                                    </Bar>
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
+                    </div>
+
+                    {/* CHART 4: So sánh 2 quý gần nhất */}
+                    {seasonCompareData.data.length > 0 ? (
+                        <div className="card shadow-sm border border-gray-100 p-6 rounded-2xl">
+                            <div className="flex items-center justify-between mb-1">
+                                <h3 className="text-lg font-bold text-gray-900 flex items-center">
+                                    <FiBarChart2 className="mr-2 text-primary-500" />
+                                    So Sánh 2 Quý Gần Nhất
+                                </h3>
+                            </div>
+                            <p className="text-sm text-gray-500 mb-5">
+                                <span className="inline-block w-3 h-3 rounded-full bg-blue-300 mr-1 align-middle" />
+                                {seasonCompareData.s2}
+                                <span className="mx-2 text-gray-300">vs</span>
+                                <span className="inline-block w-3 h-3 rounded-full bg-emerald-500 mr-1 align-middle" />
+                                {seasonCompareData.s1}
+                            </p>
+                            <div className="h-64 w-full">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart data={seasonCompareData.data} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
+                                        <XAxis
+                                            dataKey="name"
+                                            tick={{ fill: '#6B7280', fontSize: 12 }}
+                                            axisLine={false} tickLine={false}
+                                        />
+                                        <YAxis tick={{ fill: '#6B7280', fontSize: 12 }} axisLine={false} tickLine={false} />
+                                        <Tooltip
+                                            contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                                            formatter={(value, name) => [`${formatNumber(value)} kg`, name]}
+                                        />
+                                        <Legend verticalAlign="top" iconType="circle" wrapperStyle={{ paddingBottom: '12px', fontSize: 12 }} />
+                                        {/* Vụ cũ hơn (s2) — màu xanh dương nhạt */}
+                                        <Bar dataKey={seasonCompareData.s2} fill="#93c5fd" radius={[4, 4, 0, 0]} maxBarSize={32} />
+                                        {/* Vụ mới nhất (s1) — màu xanh lá nổi bật */}
+                                        <Bar dataKey={seasonCompareData.s1} fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={32} />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </div>
+                        </div>
+                    ) : (
+                        // Placeholder khi mới chỉ có 1 quý
+                        <div className="card shadow-sm border border-dashed border-gray-200 p-6 rounded-2xl flex flex-col items-center justify-center text-gray-400 min-h-[280px]">
+                            <FiBarChart2 className="text-4xl mb-3 opacity-20" />
+                            <p className="text-sm text-center">Cần ít nhất 2 quý có dữ liệu<br />để hiển thị biểu đồ so sánh.</p>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* ROW 4: BẢNG XẾP HẠNG THỬA ĐẤT (Chỉ hiện khi chọn Tất cả) */}
             {selectedFarmId === 'all' && filteredFarms.length > 0 && (
                 <div className="card shadow-sm border border-gray-100 rounded-2xl overflow-hidden">
                     <div className="px-6 py-5 border-b border-gray-50 bg-gray-50/50">
