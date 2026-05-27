@@ -19,6 +19,9 @@ export const getInitials = (name) => {
         .join('');
 };
 
+// Đọc URL backend từ biến môi trường, fallback về localhost khi không có .env
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+
 /**
  * Normalize a product image (String hoặc { url, public_id }) thành URL hiển thị.
  * Backward-compatible: hỗ trợ cả format cũ lẫn mới.
@@ -31,7 +34,7 @@ export const getImageUrl = (img) => {
     const raw = typeof img === 'object' ? img.url : img;
     if (!raw) return '';
     if (raw.startsWith('http') || raw.startsWith('data:')) return raw;
-    return `http://localhost:5000${raw}`;
+    return `${BACKEND_URL}${raw}`;
 };
 
 /**

@@ -43,9 +43,12 @@ const CreateProductPage = () => {
   const certifications = ['Không có', 'VietGAP', 'GlobalGAP', 'Organic', 'HACCP'];
   const units = ['kg', 'tấn', 'bó', 'túi', 'hộp', 'chai'];
 
+  // Đọc URL backend từ biến môi trường, fallback về localhost khi không có .env
+  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+
   // Chuyển đổi đường dẫn ảnh từ server sang URL đầy đủ
   const toImageUrl = (path) =>
-    path?.startsWith('http') || path?.startsWith('data:') ? path : `http://localhost:5000${path}`;
+    path?.startsWith('http') || path?.startsWith('data:') ? path : `${BACKEND_URL}${path}`;
 
   // Format ngày từ ISO sang yyyy-MM-dd cho input[type=date]
   const toDateInput = (iso) => {
