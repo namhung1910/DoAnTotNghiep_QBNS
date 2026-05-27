@@ -226,26 +226,41 @@ const WeatherWidget = () => {
                                 </div>
                             </BentoCard>
 
-                            <BentoCard>
-                                <div className="p-3 sm:p-4">
-                                    <p className="text-[10px] font-black uppercase tracking-widest mb-3 text-white/50">Khuyến cáo</p>
-                                    <div className="space-y-2">
-                                        {data.alerts?.length > 0 ? (
-                                            data.alerts.map((a, i) => (
-                                                <div key={i} className="flex items-center gap-2">
-                                                    <div className="w-1.5 h-1.5 rounded-full bg-white/80 flex-shrink-0" />
-                                                    <span className="text-xs font-bold text-white/90 truncate">{a.message}</span>
-                                                </div>
-                                            ))
-                                        ) : (
-                                            <div className="flex items-center gap-2">
-                                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 flex-shrink-0" />
-                                                <span className="text-xs font-bold text-white/90">Môi trường ổn định</span>
-                                            </div>
-                                        )}
+            <BentoCard>
+                <div className="p-3 sm:p-4">
+                    <p className="text-[10px] font-black uppercase tracking-widest mb-3 text-white/50">Khuyến cáo</p>
+                    <div className="space-y-2">
+                        {data.alerts?.length > 0 ? (
+                            data.alerts.map((a, i) => (
+                                <div key={i} className="flex items-center gap-2">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-white/80 flex-shrink-0" />
+                                    {/* Marquee liên tục: nhân đôi nội dung, translate -50% → seamless loop */}
+                                    <div className="overflow-hidden flex-1">
+                                        <div
+                                            className="inline-flex whitespace-nowrap"
+                                            style={{
+                                                animation: a.message?.length > 18
+                                                    ? 'marqueeScroll 12s linear infinite'
+                                                    : 'none'
+                                            }}
+                                        >
+                                            <span className="text-xs font-bold text-white/90 pr-8">{a.message}</span>
+                                            {a.message?.length > 18 && (
+                                                <span className="text-xs font-bold text-white/90 pr-8">{a.message}</span>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
-                            </BentoCard>
+                            ))
+                        ) : (
+                            <div className="flex items-center gap-2">
+                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 flex-shrink-0" />
+                                <span className="text-xs font-bold text-white/90">Môi trường ổn định</span>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </BentoCard>
                         </div>
 
                         {/* Hàng 3: Dự báo 3 ngày */}

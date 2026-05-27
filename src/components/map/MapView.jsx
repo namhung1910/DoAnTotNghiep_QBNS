@@ -95,6 +95,67 @@ const MapController = ({ center, zoom }) => {
   return null;
 };
 
+// ─── Legend Panel: thu gọn trên mobile, đầy đủ trên desktop ─────────────────
+const LegendPanel = ({ showRegions, showFarms, showUnassigned }) => {
+  const [expanded, setExpanded] = useState(false);
+
+  const items = [];
+  if (showRegions) {
+    items.push(
+      { color: '#fef08a', border: '#ca8a04', dashed: true, label: 'VLT — Cây lương thực' },
+      { color: '#fed7aa', border: '#c2410c', dashed: true, label: 'VCN — Cây công nghiệp' },
+      { color: '#bbf7d0', border: '#16a34a', dashed: true, label: 'VAR — Cây ăn quả & rau màu' },
+    );
+  }
+  if (showFarms) {
+    if (showUnassigned) items.push({ color: '#9ca3af', border: '#6b7280', dashed: true, label: 'Đất chưa có người nhận' });
+    items.push(
+      { color: '#f59e0b', label: 'Đang gieo trồng' },
+      { color: '#22c55e', label: 'Đang phát triển' },
+      { color: '#ef4444', label: 'Sắp thu hoạch' },
+      { color: '#8b5cf6', label: 'Đã thu hoạch' },
+    );
+  }
+
+  return (
+    <div className="absolute bottom-4 right-4 z-[1000]">
+      {/* Nút toggle — chỉ hiện trên mobile (< sm) */}
+      <button
+        onClick={() => setExpanded(prev => !prev)}
+        className="sm:hidden flex items-center gap-1.5 bg-white rounded-lg shadow-lg px-2.5 py-1.5 text-xs font-semibold text-gray-700 border border-gray-100"
+      >
+        <span>🗺️</span>
+        <span>Chú thích</span>
+        <span className="text-gray-400">{expanded ? '▼' : '▲'}</span>
+      </button>
+
+      {/* Nội dung legend */}
+      <div className={`
+        bg-white rounded-xl shadow-lg border border-gray-100
+        ${expanded ? 'block mt-1' : 'hidden'}
+        sm:block sm:mt-0
+        p-2 sm:p-4
+      `}>
+        <h4 className="font-semibold text-xs sm:text-sm text-gray-900 mb-1.5 sm:mb-2">Chú thích</h4>
+        <div className="space-y-1">
+          {items.map((item, i) => (
+            <div key={i} className="flex items-center gap-1.5 sm:gap-2">
+              <div
+                className="flex-shrink-0 w-3 h-3 sm:w-4 sm:h-4 rounded"
+                style={{
+                  background: item.color,
+                  border: item.border ? `2px ${item.dashed ? 'dashed' : 'solid'} ${item.border}` : undefined,
+                }}
+              />
+              <span className="text-[10px] sm:text-xs text-gray-700 leading-tight">{item.label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const MapView = ({
   onRegionClick,
   onFarmClick,
@@ -408,54 +469,8 @@ const MapView = ({
         })()}
       </MapContainer>
 
-      {/* Legend */}
-      <div className="absolute bottom-4 right-4 bg-white rounded-xl shadow-lg p-4 z-10">
-        <h4 className="font-semibold text-sm text-gray-900 mb-2">Chú thích</h4>
-        <div className="space-y-1 text-xs">
-          {showRegions && (
-            <>
-              <div className="flex items-center space-x-2">
-                <div className="w-4 h-4 border-2 border-dashed rounded" style={{ background: '#fef08a', borderColor: '#ca8a04' }} />
-                <span>VLT — Cây lương thực</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <div className="w-4 h-4 border-2 border-dashed rounded" style={{ background: '#fed7aa', borderColor: '#c2410c' }} />
-                <span>VCN — Cây công nghiệp</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <div className="w-4 h-4 border-2 border-dashed rounded" style={{ background: '#bbf7d0', borderColor: '#16a34a' }} />
-                <span>VAR — Cây ăn quả &amp; rau màu</span>
-              </div>
-            </>
-          )}
-          {showFarms && (
-            <>
-              {showUnassigned && (
-                <div className="flex items-center space-x-2">
-                  <div className="w-4 h-4 bg-gray-400 rounded border-2 border-dashed border-gray-500" />
-                  <span>Đất chưa có người nhận</span>
-                </div>
-              )}
-              <div className="flex items-center space-x-2">
-                <div className="w-4 h-4 bg-[#f59e0b] rounded" />
-                <span>Đang gieo trồng</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <div className="w-4 h-4 bg-[#22c55e] rounded" />
-                <span>Đang phát triển</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <div className="w-4 h-4 bg-[#ef4444] rounded" />
-                <span>Sắp thu hoạch</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <div className="w-4 h-4 bg-[#8b5cf6] rounded" />
-                <span>Đã thu hoạch</span>
-              </div>
-            </>
-          )}
-        </div>
-      </div>
+      {/* Legend — thu gọn trên mobile, đầy đủ trên desktop */}
+      <LegendPanel showRegions={showRegions} showFarms={showFarms} showUnassigned={showUnassigned} />
     </div>
   );
 };

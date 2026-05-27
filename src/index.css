@@ -227,6 +227,16 @@
     animation: aurora-varied 20s ease-in-out infinite;
   }
 
+  /* Marquee: chữ chạy ngang liên tục, không khoảng trống (dùng kỹ thuật duplicate content) */
+  @keyframes marqueeScroll {
+    0% {
+      transform: translateX(0);
+    }
+    100% {
+      transform: translateX(-50%);
+    }
+  }
+
   .bento-card {
     /* Loại bỏ bg-black/10 cũ, dùng màu trắng cực mỏng để lấy độ trong suốt */
     @apply relative overflow-hidden rounded-2xl bg-black/10 transition-all duration-300;

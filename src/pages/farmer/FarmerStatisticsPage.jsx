@@ -170,7 +170,7 @@ const FarmerStatisticsPage = () => {
     if (loading) return <Loading fullScreen={false} message="Đang nạp dữ liệu thống kê..." />;
 
     return (
-        <div className="p-3 sm:p-6">
+        <div className="p-3 sm:p-6 w-full overflow-hidden">
 
             {/* HEADER & BỘ LỌC */}
             <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-6 pb-4 sm:pb-6 border-b border-gray-100">
@@ -179,7 +179,7 @@ const FarmerStatisticsPage = () => {
                         <FiBarChart2 className="mr-2 text-primary-500 flex-shrink-0" />
                         <span className="truncate">Báo cáo Hiệu quả Nông Trại</span>
                     </h1>
-                    <p className="text-gray-600 text-sm mt-0.5">Phân tích năng suất thu hoạch và hiệu suất bán hàng</p>
+                    <p className="text-gray-600 text-sm mt-0.5 truncate">Phân tích năng suất thu hoạch và hiệu suất bán hàng</p>
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-2 mt-3 lg:mt-0">

@@ -84,7 +84,7 @@ const DashboardLayout = ({ type = 'farmer' }) => {
   }, [user, type]);
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen bg-gray-50 flex overflow-x-hidden">
       {/* Sidebar - Mobile overlay */}
       {sidebarOpen && (
         <div
@@ -182,7 +182,7 @@ const DashboardLayout = ({ type = 'farmer' }) => {
       </aside>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col min-h-screen">
+      <div className="flex-1 flex flex-col min-h-screen min-w-0 overflow-x-hidden">
         {/* Top bar */}
         <header className="h-16 bg-white border-b border-gray-100 flex items-center justify-between px-4 lg:px-8">
           <button
@@ -219,7 +219,7 @@ const DashboardLayout = ({ type = 'farmer' }) => {
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 overflow-y-auto">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden">
           <Outlet />
         </main>
       </div>
