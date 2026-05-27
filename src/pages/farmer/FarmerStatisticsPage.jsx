@@ -170,26 +170,26 @@ const FarmerStatisticsPage = () => {
     if (loading) return <Loading fullScreen={false} message="Đang nạp dữ liệu thống kê..." />;
 
     return (
-        <div className="p-6">
+        <div className="p-3 sm:p-6">
 
-            {/* HEADER & FILTERS */}
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-8 pb-6 border-b border-gray-100">
-                <div>
-                    <h1 className="text-2xl font-bold text-gray-900 flex items-center">
-                        <FiBarChart2 className="mr-2 text-primary-500" />
-                        Báo cáo Hiệu quả Nông Trại
+            {/* HEADER & BỘ LỌC */}
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-6 pb-4 sm:pb-6 border-b border-gray-100">
+                <div className="min-w-0">
+                    <h1 className="text-lg sm:text-2xl font-bold text-gray-900 flex items-center">
+                        <FiBarChart2 className="mr-2 text-primary-500 flex-shrink-0" />
+                        <span className="truncate">Báo cáo Hiệu quả Nông Trại</span>
                     </h1>
-                    <p className="text-gray-600 mt-1">Phân tích năng suất thu hoạch và hiệu suất bán hàng</p>
+                    <p className="text-gray-600 text-sm mt-0.5">Phân tích năng suất thu hoạch và hiệu suất bán hàng</p>
                 </div>
 
-                <div className="flex flex-col sm:flex-row gap-3 mt-4 lg:mt-0">
+                <div className="flex flex-col sm:flex-row gap-2 mt-3 lg:mt-0">
                     {/* Bộ lọc Thửa đất */}
                     <div className="flex items-center bg-white border border-gray-300 rounded-lg px-3 py-2 shadow-sm">
-                        <FiMap className="text-gray-400 mr-2" />
+                        <FiMap className="text-gray-400 mr-2 flex-shrink-0" />
                         <select
                             value={selectedFarmId}
                             onChange={(e) => setSelectedFarmId(e.target.value)}
-                            className="bg-transparent text-sm font-medium text-gray-700 outline-none cursor-pointer w-full sm:w-auto"
+                            className="bg-transparent text-sm font-medium text-gray-700 outline-none cursor-pointer w-full"
                         >
                             <option value="all">Tất cả thửa đất</option>
                             {farms.map(f => (
@@ -200,11 +200,11 @@ const FarmerStatisticsPage = () => {
 
                     {/* Bộ lọc Năm */}
                     <div className="flex items-center bg-white border border-gray-300 rounded-lg px-3 py-2 shadow-sm">
-                        <FiFilter className="text-gray-400 mr-2" />
+                        <FiFilter className="text-gray-400 mr-2 flex-shrink-0" />
                         <select
                             value={selectedYear}
                             onChange={(e) => setSelectedYear(e.target.value)}
-                            className="bg-transparent text-sm font-medium text-gray-700 outline-none cursor-pointer"
+                            className="bg-transparent text-sm font-medium text-gray-700 outline-none cursor-pointer w-full"
                         >
                             <option value="all">Tất cả các năm (Lũy kế)</option>
                             {availableYears.map(y => (
@@ -216,50 +216,50 @@ const FarmerStatisticsPage = () => {
             </div>
 
             {/* ROW 1: KPIs */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
 
-                <div className="card bg-gradient-to-br from-green-500 to-green-600 text-white shadow-lg shadow-green-100 p-5 rounded-2xl relative overflow-hidden">
+                <div className="card bg-gradient-to-br from-green-500 to-green-600 text-white shadow-lg shadow-green-100 p-3 sm:p-5 rounded-2xl relative overflow-hidden">
                     <div className="relative z-10">
-                        <p className="text-green-100 text-sm font-medium opacity-90">Tổng Sản Lượng Thu Hoạch</p>
-                        <div className="flex items-baseline space-x-1 mt-1">
-                            <p className="text-3xl font-bold">{formatNumber(stats.totalYield)}</p>
-                            <span className="text-sm font-medium opacity-80">kg</span>
+                        <p className="text-green-100 text-xs font-medium opacity-90 leading-tight">Tổng Sản Lượng</p>
+                        <div className="flex items-baseline gap-1 mt-1">
+                            <p className="text-xl sm:text-3xl font-bold">{formatNumber(stats.totalYield)}</p>
+                            <span className="text-xs font-medium opacity-80">kg</span>
                         </div>
                     </div>
-                    <IconWheat className="absolute right-0 bottom-0 text-7xl opacity-20 transform translate-x-4 space-y-4" />
+                    <IconWheat className="absolute right-0 bottom-0 text-5xl sm:text-7xl opacity-20 transform translate-x-4" />
                 </div>
 
-                <div className="card bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-100 p-5 rounded-2xl relative overflow-hidden">
+                <div className="card bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-100 p-3 sm:p-5 rounded-2xl relative overflow-hidden">
                     <div className="relative z-10">
-                        <p className="text-blue-100 text-sm font-medium opacity-90">Tổng Diện Tích Canh Tác</p>
-                        <div className="flex items-baseline space-x-1 mt-1">
-                            <p className="text-3xl font-bold">{formatNumber(stats.totalArea)}</p>
-                            <span className="text-sm font-medium opacity-80">m²</span>
+                        <p className="text-blue-100 text-xs font-medium opacity-90 leading-tight">Tổng Diện Tích</p>
+                        <div className="flex items-baseline gap-1 mt-1">
+                            <p className="text-xl sm:text-3xl font-bold">{formatNumber(stats.totalArea)}</p>
+                            <span className="text-xs font-medium opacity-80">m²</span>
                         </div>
                     </div>
-                    <FiMap className="absolute right-0 bottom-0 text-7xl opacity-20 transform translate-x-2 space-y-2" />
+                    <FiMap className="absolute right-0 bottom-0 text-5xl sm:text-7xl opacity-20 transform translate-x-2" />
                 </div>
 
-                <div className="card bg-gradient-to-br from-purple-500 to-purple-600 text-white shadow-lg shadow-purple-100 p-5 rounded-2xl relative overflow-hidden">
+                <div className="card bg-gradient-to-br from-purple-500 to-purple-600 text-white shadow-lg shadow-purple-100 p-3 sm:p-5 rounded-2xl relative overflow-hidden">
                     <div className="relative z-10">
-                        <p className="text-purple-100 text-sm font-medium opacity-90">Trung Bình Năng Suất</p>
-                        <div className="flex items-baseline space-x-1 mt-1">
-                            <p className="text-3xl font-bold">{stats.avgYieldPerM2.toFixed(3)}</p>
-                            <span className="text-sm font-medium opacity-80">kg/m²</span>
+                        <p className="text-purple-100 text-xs font-medium opacity-90 leading-tight">TB Năng Suất</p>
+                        <div className="flex items-baseline gap-1 mt-1">
+                            <p className="text-xl sm:text-3xl font-bold">{stats.avgYieldPerM2.toFixed(3)}</p>
+                            <span className="text-xs font-medium opacity-80">kg/m²</span>
                         </div>
                     </div>
-                    <FiLayers className="absolute right-0 bottom-0 text-7xl opacity-20 transform translate-x-2" />
+                    <FiLayers className="absolute right-0 bottom-0 text-5xl sm:text-7xl opacity-20 transform translate-x-2" />
                 </div>
 
-                <div className="card bg-gradient-to-br from-orange-500 to-orange-600 text-white shadow-lg shadow-orange-100 p-5 rounded-2xl relative overflow-hidden">
+                <div className="card bg-gradient-to-br from-orange-500 to-orange-600 text-white shadow-lg shadow-orange-100 p-3 sm:p-5 rounded-2xl relative overflow-hidden">
                     <div className="relative z-10">
-                        <p className="text-orange-100 text-sm font-medium opacity-90">Lượt Khách Gọi / Zalo</p>
-                        <div className="flex items-baseline space-x-1 mt-1">
-                            <p className="text-3xl font-bold">{formatNumber(stats.totalContacts)}</p>
-                            <span className="text-sm font-medium opacity-80">lượt</span>
+                        <p className="text-orange-100 text-xs font-medium opacity-90 leading-tight">Lượt Liên Hệ</p>
+                        <div className="flex items-baseline gap-1 mt-1">
+                            <p className="text-xl sm:text-3xl font-bold">{formatNumber(stats.totalContacts)}</p>
+                            <span className="text-xs font-medium opacity-80">lượt</span>
                         </div>
                     </div>
-                    <FiPhoneCall className="absolute right-0 bottom-0 text-7xl opacity-20 transform translate-x-2 translate-y-2" />
+                    <FiPhoneCall className="absolute right-0 bottom-0 text-5xl sm:text-7xl opacity-20 transform translate-x-2 translate-y-2" />
                 </div>
 
             </div>

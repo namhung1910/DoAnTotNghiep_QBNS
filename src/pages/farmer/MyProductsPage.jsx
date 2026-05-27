@@ -124,20 +124,20 @@ const MyProductsPage = () => {
   }
 
   return (
-    <div className="p-6">
+    <div className="p-3 sm:p-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Sản phẩm của tôi</h1>
-          <p className="text-gray-600">Quản lý sản phẩm và kho hàng nông sản</p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
+        <div className="min-w-0">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Sản phẩm của tôi</h1>
+          <p className="text-gray-600 text-sm mt-0.5">Quản lý sản phẩm và kho hàng nông sản</p>
         </div>
-        <Button to="/farmer/products/new" variant="primary" icon={FiPlus}>
+        <Button to="/farmer/products/new" variant="primary" icon={FiPlus} className="w-full sm:w-auto flex-shrink-0">
           Đăng sản phẩm mới
         </Button>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2 mb-6 border-b border-gray-200">
+      <div className="flex gap-1 mb-6 border-b border-gray-200 overflow-x-auto scrollbar-hide">
         {[
           { key: 'products', label: `Sản phẩm (${products.length})`, icon: FiPackage },
           { key: 'inventory', label: `Kho hàng (${farms.length} thửa)`, icon: FiTruck }
@@ -145,13 +145,13 @@ const MyProductsPage = () => {
           <button
             key={key}
             onClick={() => setActiveTab(key)}
-            className={`flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap flex-shrink-0 ${
               activeTab === key
                 ? 'border-primary-600 text-primary-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700'
             }`}
           >
-            <Icon size={16} /> {label}
+            <Icon size={15} /> {label}
           </button>
         ))}
       </div>

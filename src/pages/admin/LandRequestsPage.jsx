@@ -150,10 +150,10 @@ const LandRequestsPage = () => {
     if (loading) return <Loading fullScreen={false} />;
 
     return (
-        <div className="p-6">
+        <div className="p-3 sm:p-6">
             <div className="mb-6">
-                <h1 className="text-2xl font-bold text-gray-900">Yêu cầu cấp đất</h1>
-                <p className="text-gray-600">Duyệt đơn đăng ký thửa đất từ nông dân</p>
+                <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Yêu cầu cấp đất</h1>
+                <p className="text-gray-600 text-sm mt-0.5">Duyệt đơn đăng ký thửa đất từ nông dân</p>
             </div>
 
             {requests.length === 0 ? (
@@ -168,13 +168,13 @@ const LandRequestsPage = () => {
                         <div key={request._id} className="card">
                             <div className="flex flex-col md:flex-row justify-between gap-6">
                                 <div className="flex-1">
-                                    {/* Farmer info */}
-                                    <div className="flex items-center space-x-3 mb-3">
-                                        <h3 className="text-lg font-bold text-gray-900">
+                            {/* Thông tin nông dân */}
+                                    <div className="flex flex-wrap items-center gap-2 mb-3">
+                                        <h3 className="text-base sm:text-lg font-bold text-gray-900">
                                             {request.user?.fullName}
                                         </h3>
-                                        <span className="text-sm text-gray-500">(@{request.user?.username})</span>
-                                        <span className="badge bg-yellow-100 text-yellow-800">Chờ duyệt</span>
+                                        <span className="text-sm text-gray-500 break-all">(@{request.user?.username})</span>
+                                        <span className="badge bg-yellow-100 text-yellow-800 text-xs">Chờ duyệt</span>
                                     </div>
 
                                     {/* Farm info — lấy từ assignedFarm (populated) */}
@@ -216,15 +216,15 @@ const LandRequestsPage = () => {
                                     </div>
                                 </div>
 
-                                {/* Action buttons */}
-                                <div className="flex md:flex-col justify-center gap-3 min-w-[160px]">
-                                    {/* Preview map if farm has geometry */}
+                                {/* Nút hành động */}
+                                <div className="flex flex-row flex-wrap md:flex-col justify-start gap-2 md:min-w-[140px] mt-3 md:mt-0 border-t md:border-t-0 pt-3 md:pt-0">
+                                    {/* Xem bản đồ nếu có geometry */}
                                     {request.assignedFarm?.geometry && (
                                         <Button
                                             onClick={() => openMapPreview(request)}
                                             variant="secondary"
                                             icon={FiMap}
-                                            className="w-full text-sm !border-blue-200 !text-blue-600 hover:!bg-blue-50"
+                                            className="flex-1 md:w-full text-sm !border-blue-200 !text-blue-600 hover:!bg-blue-50 !py-2"
                                         >
                                             Xem bản đồ
                                         </Button>
@@ -234,7 +234,7 @@ const LandRequestsPage = () => {
                                         loading={processing}
                                         variant="primary"
                                         icon={FiCheck}
-                                        className="w-full"
+                                        className="flex-1 md:w-full !py-2"
                                     >
                                         Chấp nhận
                                     </Button>
@@ -246,7 +246,7 @@ const LandRequestsPage = () => {
                                         }}
                                         variant="secondary"
                                         icon={FiX}
-                                        className="w-full !border-red-200 !text-red-600 hover:!bg-red-50"
+                                        className="flex-1 md:w-full !border-red-200 !text-red-600 hover:!bg-red-50 !py-2"
                                     >
                                         Từ chối
                                     </Button>

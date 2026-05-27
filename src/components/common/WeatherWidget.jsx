@@ -136,7 +136,7 @@ const WeatherWidget = () => {
 
     return (
         <div
-            className="aurora-container relative rounded-3xl p-3 transition-all duration-1000 border border-white/5 overflow-hidden min-h-[380px]"
+            className="aurora-container relative rounded-3xl p-3 transition-all duration-1000 border border-white/5 overflow-hidden"
             style={{ backgroundColor: currentTheme.baseBg }}
         >
             <div className="aurora-blur-wrapper">
@@ -147,14 +147,14 @@ const WeatherWidget = () => {
 
             <div className="relative z-10">
                 {loading ? (
-                    <div className="grid grid-cols-6 gap-2 animate-pulse">
-                        <div className="col-span-4 row-span-2 h-40 bg-white/10 rounded-2xl" />
+                    <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 animate-pulse">
+                        <div className="col-span-2 sm:col-span-4 row-span-2 h-36 sm:h-40 bg-white/10 rounded-2xl" />
                         {[...Array(4)].map((_, i) => (
                             <div key={i} className="h-[76px] bg-white/10 rounded-2xl" />
                         ))}
                         <div className="col-span-3 h-24 bg-white/10 rounded-2xl" />
                         <div className="col-span-3 h-24 bg-white/10 rounded-2xl" />
-                        <div className="col-span-6 grid grid-cols-3 gap-2">
+                        <div className="col-span-3 sm:col-span-6 grid grid-cols-3 gap-2">
                             {[...Array(3)].map((_, i) => (
                                 <div key={i} className="h-20 bg-white/10 rounded-2xl" />
                             ))}
@@ -168,90 +168,99 @@ const WeatherWidget = () => {
                         </button>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-6 gap-2 animate-fadeIn">
-                        <BentoCard className="col-span-4 row-span-2 !bg-transparent border-none">
-                            <div className={`absolute inset-0 bg-gradient-to-br ${currentTheme.hero} opacity-40`} />
-                            <div className="relative p-5 h-full flex flex-col justify-between text-white">
-                                <div className="flex justify-between items-start">
-                                    <div>
-                                        <p className="text-[10px] font-bold opacity-70 uppercase tracking-widest">Hiện tại</p>
-                                        <h3 className="text-2xl font-black mt-1 leading-tight text-white">
-                                            {current?.weather?.label || 'Đang tải...'}
-                                        </h3>
-                                    </div>
-                                    <span className="text-5xl drop-shadow-2xl">
-                                        {current?.weather?.icon || '☀️'}
-                                    </span>
-                                </div>
-                                <div className="mt-6">
-                                    <h2 className="text-5xl font-black tracking-tighter text-white">
-                                        {current?.tempC != null ? `${current.tempC}°` : '--'}
-                                    </h2>
-                                    <p className="text-[10px] font-bold opacity-40 mt-1 uppercase tracking-widest text-white">
-                                        Cập nhật {new Date(data.updatedAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
-                                    </p>
-                                </div>
-                            </div>
-                        </BentoCard>
-
-                        <StatCell icon="💧" label="Độ ẩm" value={current?.humidity != null ? `${current.humidity}%` : null} />
-                        <StatCell icon="🌬️" label="Gió" value={current?.windSpeed != null ? `${current.windSpeed} km/h` : null} />
-                        <StatCell icon="🌡️" label="Điểm sương" value={current?.dewPoint != null ? `${current.dewPoint}°C` : null} />
-                        <StatCell icon="🔬" label="VPD" value={current?.vpd != null ? `${current.vpd} kPa` : null} />
-
-                        <BentoCard className="col-span-3">
-                            <div className="p-4">
-                                <div className="flex items-center justify-between mb-4">
-                                    <p className="text-[10px] font-black uppercase tracking-widest text-white/50">Độ ẩm đất</p>
-                                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold bg-white/10 ${SOIL_CONFIG[current?.soilStatus?.color || 'gray'].text}`}>
-                                        {current?.soilStatus?.label || 'N/A'}
-                                    </span>
-                                </div>
-                                <div className="h-2 w-full rounded-full bg-black/20 overflow-hidden">
-                                    <div
-                                        className={`h-full rounded-full ${SOIL_CONFIG[current?.soilStatus?.color || 'gray'].fill}`}
-                                        style={{ width: `${current?.soilStatus?.level || 0}%` }}
-                                    />
-                                </div>
-                                <div className="flex justify-between text-[9px] font-bold mt-2 opacity-30 uppercase text-white">
-                                    <span>Khô</span><span>Tốt</span><span>Úng</span>
-                                </div>
-                            </div>
-                        </BentoCard>
-
-                        <BentoCard className="col-span-3">
-                            <div className="p-4">
-                                <p className="text-[10px] font-black uppercase tracking-widest mb-4 text-white/50">Khuyến cáo</p>
-                                <div className="space-y-2.5">
-                                    {data.alerts?.length > 0 ? (
-                                        data.alerts.map((a, i) => (
-                                            <div key={i} className="flex items-center gap-2">
-                                                <div className="w-1.5 h-1.5 rounded-full bg-white/80" />
-                                                <span className="text-xs font-bold text-white/90 truncate">{a.message}</span>
-                                            </div>
-                                        ))
-                                    ) : (
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                                            <span className="text-xs font-bold text-white/90">Môi trường ổn định</span>
+                    <div className="animate-fadeIn space-y-2">
+                        {/* Hàng 1: Thông tin chính + 4 ô thống kê */}
+                        <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                            {/* Ô thông tin thời tiết chính */}
+                            <BentoCard className="col-span-2 sm:col-span-4 row-span-2 !bg-transparent border-none">
+                                <div className={`absolute inset-0 bg-gradient-to-br ${currentTheme.hero} opacity-40`} />
+                                <div className="relative p-3 sm:p-5 h-full flex flex-col justify-between text-white">
+                                    <div className="flex justify-between items-start">
+                                        <div>
+                                            <p className="text-[10px] font-bold opacity-70 uppercase tracking-widest">Hiện tại</p>
+                                            <h3 className="text-lg sm:text-2xl font-black mt-1 leading-tight text-white">
+                                                {current?.weather?.label || 'Đang tải...'}
+                                            </h3>
                                         </div>
-                                    )}
+                                        <span className="text-3xl sm:text-5xl drop-shadow-2xl">
+                                            {current?.weather?.icon || '☀️'}
+                                        </span>
+                                    </div>
+                                    <div className="mt-3 sm:mt-6">
+                                        <h2 className="text-3xl sm:text-5xl font-black tracking-tighter text-white">
+                                            {current?.tempC != null ? `${current.tempC}°` : '--'}
+                                        </h2>
+                                        <p className="text-[10px] font-bold opacity-40 mt-1 uppercase tracking-widest text-white">
+                                            Cập nhật {new Date(data.updatedAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                                        </p>
+                                    </div>
                                 </div>
-                            </div>
-                        </BentoCard>
+                            </BentoCard>
 
-                        <div className="col-span-6 grid grid-cols-3 gap-2">
+                            {/* 4 ô thống kê nhỏ */}
+                            <StatCell icon="💧" label="Độ ẩm" value={current?.humidity != null ? `${current.humidity}%` : null} />
+                            <StatCell icon="🌬️" label="Gió" value={current?.windSpeed != null ? `${current.windSpeed} km/h` : null} />
+                            <StatCell icon="🌡️" label="Đ. Sương" value={current?.dewPoint != null ? `${current.dewPoint}°C` : null} />
+                            <StatCell icon="🔬" label="VPD" value={current?.vpd != null ? `${current.vpd} kPa` : null} />
+                        </div>
+
+                        {/* Hàng 2: Độ ẩm đất + Khuyến cáo */}
+                        <div className="grid grid-cols-2 gap-2">
+                            <BentoCard>
+                                <div className="p-3 sm:p-4">
+                                    <div className="flex items-center justify-between mb-3">
+                                        <p className="text-[10px] font-black uppercase tracking-widest text-white/50">Độ ẩm đất</p>
+                                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold bg-white/10 ${SOIL_CONFIG[current?.soilStatus?.color || 'gray'].text}`}>
+                                            {current?.soilStatus?.label || 'N/A'}
+                                        </span>
+                                    </div>
+                                    <div className="h-2 w-full rounded-full bg-black/20 overflow-hidden">
+                                        <div
+                                            className={`h-full rounded-full ${SOIL_CONFIG[current?.soilStatus?.color || 'gray'].fill}`}
+                                            style={{ width: `${current?.soilStatus?.level || 0}%` }}
+                                        />
+                                    </div>
+                                    <div className="flex justify-between text-[9px] font-bold mt-2 opacity-30 uppercase text-white">
+                                        <span>Khô</span><span>Tốt</span><span>Úng</span>
+                                    </div>
+                                </div>
+                            </BentoCard>
+
+                            <BentoCard>
+                                <div className="p-3 sm:p-4">
+                                    <p className="text-[10px] font-black uppercase tracking-widest mb-3 text-white/50">Khuyến cáo</p>
+                                    <div className="space-y-2">
+                                        {data.alerts?.length > 0 ? (
+                                            data.alerts.map((a, i) => (
+                                                <div key={i} className="flex items-center gap-2">
+                                                    <div className="w-1.5 h-1.5 rounded-full bg-white/80 flex-shrink-0" />
+                                                    <span className="text-xs font-bold text-white/90 truncate">{a.message}</span>
+                                                </div>
+                                            ))
+                                        ) : (
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 flex-shrink-0" />
+                                                <span className="text-xs font-bold text-white/90">Môi trường ổn định</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </BentoCard>
+                        </div>
+
+                        {/* Hàng 3: Dự báo 3 ngày */}
+                        <div className="grid grid-cols-3 gap-2">
                             {data.forecast?.map((day, i) => (
                                 <BentoCard key={day.date} className={i === 0 ? 'bg-white/10' : ''}>
-                                    <div className="p-3 flex flex-col items-center">
-                                        <p className="text-[9px] font-black uppercase tracking-widest mb-2 text-white/40">
+                                    <div className="p-2 sm:p-3 flex flex-col items-center">
+                                        <p className="text-[9px] font-black uppercase tracking-widest mb-1 sm:mb-2 text-white/40">
                                             {i === 0 ? 'Hôm nay' : i === 1 ? 'Ngày mai' : 'Sắp tới'}
                                         </p>
                                         <div className="flex items-end gap-1">
-                                            <span className="text-lg font-black text-white">{day.maxTempC}°</span>
+                                            <span className="text-base sm:text-lg font-black text-white">{day.maxTempC}°</span>
                                             <span className="text-[10px] font-bold mb-0.5 text-white/30">{day.minTempC}°</span>
                                         </div>
-                                        <p className={`text-[9px] font-bold mt-2 ${day.totalPrecipMm > 0 ? 'text-blue-300' : 'text-amber-300'}`}>
+                                        <p className={`text-[9px] font-bold mt-1 sm:mt-2 ${day.totalPrecipMm > 0 ? 'text-blue-300' : 'text-amber-300'}`}>
                                             {day.totalPrecipMm > 0 ? `🌧️ ${day.totalPrecipMm}mm` : '☀️ Khô ráo'}
                                         </p>
                                     </div>

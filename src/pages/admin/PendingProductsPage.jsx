@@ -78,10 +78,10 @@ const PendingProductsPage = () => {
   }
 
   return (
-    <div className="p-6">
+    <div className="p-3 sm:p-6">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Duyệt sản phẩm</h1>
-        <p className="text-gray-600">Xem xét và phê duyệt các bài đăng quảng bá của nông dân</p>
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Duyệt sản phẩm</h1>
+        <p className="text-gray-600 text-sm mt-0.5">Xem xét và phê duyệt các bài đăng quảng bá của nông dân</p>
       </div>
 
       {products.length > 0 ? (
@@ -126,13 +126,13 @@ const PendingProductsPage = () => {
                 {product.description || 'Không có mô tả'}
               </p>
 
-              {/* Actions */}
-              <div className="flex items-center space-x-3 mt-4 pt-4 border-t border-gray-100">
+              {/* Hành động */}
+              <div className="flex flex-row flex-wrap items-stretch gap-2 mt-4 pt-4 border-t border-gray-100">
                 <Button
                   onClick={() => setSelectedProduct(product)}
                   variant="secondary"
                   icon={FiEye}
-                  className="flex-1"
+                  className="flex-1 !text-sm !py-2"
                 >
                   Chi tiết
                 </Button>
@@ -141,7 +141,7 @@ const PendingProductsPage = () => {
                   disabled={processing}
                   variant="secondary"
                   icon={FiX}
-                  className="flex-1 !bg-red-100 !text-red-600 !border-red-100 hover:!bg-red-200"
+                  className="flex-1 !text-sm !py-2 !bg-red-100 !text-red-600 !border-red-100 hover:!bg-red-200"
                 >
                   Từ chối
                 </Button>
@@ -150,7 +150,7 @@ const PendingProductsPage = () => {
                   loading={processing}
                   variant="primary"
                   icon={FiCheck}
-                  className="flex-1 !bg-green-600 hover:!bg-green-700 !border-green-600"
+                  className="flex-1 !text-sm !py-2 !bg-green-600 hover:!bg-green-700 !border-green-600"
                 >
                   Duyệt
                 </Button>
