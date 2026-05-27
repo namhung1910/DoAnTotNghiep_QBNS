@@ -265,22 +265,22 @@ const FarmerStatisticsPage = () => {
             </div>
 
             {/* ROW 2: CHARTS */}
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-8">
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-6 mb-6 sm:mb-8">
 
                 {/* CHART 1: Area Chart cho Năng suất */}
-                <div className="card shadow-sm border border-gray-100 p-6 rounded-2xl">
-                    <div className="flex items-center justify-between mb-6">
-                        <h3 className="text-lg font-bold text-gray-900 flex items-center">
-                            <FiActivity className="mr-2 text-primary-500" />
-                            Tiến độ & Mật độ Thu Hoạch
+                <div className="card shadow-sm border border-gray-100 p-3 sm:p-6 rounded-2xl">
+                    <div className="flex items-center justify-between mb-4 sm:mb-6">
+                        <h3 className="text-base sm:text-lg font-bold text-gray-900 flex items-center">
+                            <FiActivity className="mr-2 text-primary-500 flex-shrink-0" />
+                            <span className="truncate">Tiến độ & Mật độ Thu Hoạch</span>
                         </h3>
                         <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded font-medium">Theo Lịch Sử</span>
                     </div>
 
                     {historyChartData.length > 0 ? (
-                        <div className="h-72 w-full">
+                        <div className="h-56 sm:h-72 w-full">
                             <ResponsiveContainer width="100%" height="100%">
-                                <AreaChart data={historyChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                <AreaChart data={historyChartData} margin={{ top: 10, right: 5, left: -25, bottom: 0 }}>
                                     <defs>
                                         <linearGradient id="colorHarvest" x1="0" y1="0" x2="0" y2="1">
                                             <stop offset="5%" stopColor="#10b981" stopOpacity={0.4} />
@@ -307,17 +307,17 @@ const FarmerStatisticsPage = () => {
                 </div>
 
                 {/* CHART 2: Sản phẩm quan tâm nhất - Bar Chart Ngang dễ hiểu */}
-                <div className="card shadow-sm border border-gray-100 p-6 rounded-2xl">
-                    <h3 className="text-lg font-bold text-gray-900 mb-2 flex items-center">
-                        <FiTrendingUp className="mr-2 text-primary-500" />
-                        Top 5 Sản Phẩm Được Quan Tâm Nhất
+                <div className="card shadow-sm border border-gray-100 p-3 sm:p-6 rounded-2xl">
+                    <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-1 sm:mb-2 flex items-center">
+                        <FiTrendingUp className="mr-2 text-primary-500 flex-shrink-0" />
+                        <span className="truncate">Top 5 Sản Phẩm Được Quan Tâm Nhất</span>
                     </h3>
-                    <p className="text-sm text-gray-500 mb-6">Đo lường mức độ người mua ấn xem thông tin và Gọi điện/Zalo.</p>
+                    <p className="text-xs sm:text-sm text-gray-500 mb-4 sm:mb-6">Đo lường mức độ người mua ấn xem thông tin và Gọi điện/Zalo.</p>
 
                     {productChartData.length > 0 ? (
-                        <div className="h-72">
+                        <div className="h-56 sm:h-72">
                             <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={productChartData} layout="vertical" margin={{ top: 0, right: 30, left: 30, bottom: 0 }}>
+                                <BarChart data={productChartData} layout="vertical" margin={{ top: 0, right: 20, left: 10, bottom: 0 }}>
                                     <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#E5E7EB" />
                                     <XAxis type="number" hide />
                                     <YAxis
@@ -325,8 +325,8 @@ const FarmerStatisticsPage = () => {
                                         type="category"
                                         axisLine={false}
                                         tickLine={false}
-                                        tick={{ fontSize: 13, fill: '#374151', fontWeight: 500 }}
-                                        width={100}
+                                        tick={{ fontSize: 11, fill: '#374151', fontWeight: 500 }}
+                                        width={80}
                                     />
                                     <Tooltip
                                         cursor={{ fill: '#F3F4F6' }}
@@ -338,7 +338,7 @@ const FarmerStatisticsPage = () => {
                                         }}
                                     />
                                     <Legend verticalAlign="top" iconType="circle" wrapperStyle={{ paddingBottom: '20px' }} />
-                                    <Bar dataKey="contacts" name="Liên Hệ Cầm Chắc (Gọi/Zalo)" fill="#f59e0b" radius={[0, 4, 4, 0]} maxBarSize={20} stackId="a" />
+                                    <Bar dataKey="contacts" name="Lượt liên hệ (Gọi/Zalo)" fill="#f59e0b" radius={[0, 4, 4, 0]} maxBarSize={20} stackId="a" />
                                     <Bar dataKey="views" name="Lượt Xem Dạo" fill="#bfdbfe" radius={[0, 4, 4, 0]} maxBarSize={20} stackId="a" />
                                 </BarChart>
                             </ResponsiveContainer>
@@ -355,22 +355,22 @@ const FarmerStatisticsPage = () => {
 
             {/* ROW 3: Biểu đồ Vụ Mùa — chỉ hiện khi có ít nhất 1 vụ hợp lệ */}
             {seasonChartData.length > 0 && (
-                <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-8">
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-6 mb-6 sm:mb-8">
 
                     {/* CHART 3: Sản lượng theo vụ */}
-                    <div className="card shadow-sm border border-gray-100 p-6 rounded-2xl">
-                        <div className="flex items-center justify-between mb-6">
-                            <h3 className="text-lg font-bold text-gray-900 flex items-center">
-                                <FiPieChart className="mr-2 text-primary-500" />
-                                Sản Lượng Theo Quý
+                    <div className="card shadow-sm border border-gray-100 p-3 sm:p-6 rounded-2xl">
+                        <div className="flex items-center justify-between mb-4 sm:mb-6">
+                            <h3 className="text-base sm:text-lg font-bold text-gray-900 flex items-center">
+                                <FiPieChart className="mr-2 text-primary-500 flex-shrink-0" />
+                                <span className="truncate">Sản Lượng Theo Quý</span>
                             </h3>
                             <span className="text-xs bg-blue-50 text-blue-600 px-2 py-1 rounded font-medium">
                                 {selectedYear === 'all' ? 'Toàn bộ lịch sử' : `Năm ${selectedYear}`}
                             </span>
                         </div>
-                        <div className="h-72 w-full">
+                        <div className="h-56 sm:h-72 w-full">
                             <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={seasonChartData} margin={{ top: 10, right: 10, left: -20, bottom: 35 }}>
+                                <BarChart data={seasonChartData} margin={{ top: 10, right: 5, left: -25, bottom: 35 }}>
                                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
                                     <XAxis
                                         dataKey="name"
@@ -396,11 +396,11 @@ const FarmerStatisticsPage = () => {
 
                     {/* CHART 4: So sánh 2 quý gần nhất */}
                     {seasonCompareData.data.length > 0 ? (
-                        <div className="card shadow-sm border border-gray-100 p-6 rounded-2xl">
+                        <div className="card shadow-sm border border-gray-100 p-3 sm:p-6 rounded-2xl">
                             <div className="flex items-center justify-between mb-1">
-                                <h3 className="text-lg font-bold text-gray-900 flex items-center">
-                                    <FiBarChart2 className="mr-2 text-primary-500" />
-                                    So Sánh 2 Quý Gần Nhất
+                                <h3 className="text-base sm:text-lg font-bold text-gray-900 flex items-center">
+                                    <FiBarChart2 className="mr-2 text-primary-500 flex-shrink-0" />
+                                    <span className="truncate">So Sánh 2 Quý Gần Nhất</span>
                                 </h3>
                             </div>
                             <p className="text-sm text-gray-500 mb-5">
@@ -410,9 +410,9 @@ const FarmerStatisticsPage = () => {
                                 <span className="inline-block w-3 h-3 rounded-full bg-emerald-500 mr-1 align-middle" />
                                 {seasonCompareData.s1}
                             </p>
-                            <div className="h-64 w-full">
+                            <div className="h-52 sm:h-64 w-full">
                                 <ResponsiveContainer width="100%" height="100%">
-                                    <BarChart data={seasonCompareData.data} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+                                    <BarChart data={seasonCompareData.data} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
                                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
                                         <XAxis
                                             dataKey="name"
@@ -446,22 +446,22 @@ const FarmerStatisticsPage = () => {
             {/* ROW 4: BẢNG XẾP HẠNG THỬA ĐẤT (Chỉ hiện khi chọn Tất cả) */}
             {selectedFarmId === 'all' && filteredFarms.length > 0 && (
                 <div className="card shadow-sm border border-gray-100 rounded-2xl overflow-hidden">
-                    <div className="px-6 py-5 border-b border-gray-50 bg-gray-50/50">
-                        <h3 className="text-lg font-bold text-gray-900 flex items-center">
-                            <FiList className="mr-2 text-primary-500" />
+                    <div className="px-4 sm:px-6 py-4 sm:py-5 border-b border-gray-50 bg-gray-50/50">
+                        <h3 className="text-base sm:text-lg font-bold text-gray-900 flex items-center">
+                            <FiList className="mr-2 text-primary-500 flex-shrink-0" />
                             Xếp Hạng Năng Suất Các Thửa Đất
                         </h3>
                     </div>
 
                     <div className="overflow-x-auto">
-                        <table className="w-full text-sm text-left">
+                        <table className="w-full text-sm text-left min-w-[480px]">
                             <thead className="bg-white text-gray-500 font-medium">
                                 <tr className="border-b border-gray-100">
-                                    <th className="px-6 py-4">Tên thửa đất</th>
-                                    <th className="px-6 py-4">Loại cây trồng (Hiện tại)</th>
-                                    <th className="px-6 py-4 text-right">Diện tích</th>
-                                    <th className="px-6 py-4 text-right">Tổng Sản Lượng Từng Thu</th>
-                                    <th className="px-6 py-4 text-right text-primary-600">Năng Suất (kg/m²)</th>
+                                    <th className="px-3 sm:px-6 py-3 sm:py-4">Tên thửa đất</th>
+                                    <th className="px-3 sm:px-6 py-3 sm:py-4 hidden sm:table-cell">Loại cây trồng</th>
+                                    <th className="px-3 sm:px-6 py-3 sm:py-4 text-right">Diện tích</th>
+                                    <th className="px-3 sm:px-6 py-3 sm:py-4 text-right">Sản lượng (kg)</th>
+                                    <th className="px-3 sm:px-6 py-3 sm:py-4 text-right text-primary-600">Năng suất</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-50">
@@ -473,25 +473,25 @@ const FarmerStatisticsPage = () => {
                                     .sort((a, b) => b.efficiency - a.efficiency)
                                     .map((farm, idx) => (
                                         <tr key={farm._id} className="hover:bg-gray-50 transition-colors">
-                                            <td className="px-6 py-4">
-                                                <div className="font-bold text-gray-900">{farm.name}</div>
-                                                <div className="text-xs text-gray-400 mt-1 uppercase tracking-wider">
-                                                    {Array.isArray(farm.certifications) ? farm.certifications.join(', ') : (farm.certifications || 'Truyền thống')}
+                                            <td className="px-3 sm:px-6 py-3 sm:py-4">
+                                                <div className="font-bold text-gray-900 text-sm">{farm.name}</div>
+                                                <div className="text-xs text-gray-400 mt-0.5 sm:hidden">
+                                                    {farm.cropType || 'Truyền thống'}
                                                 </div>
                                             </td>
-                                            <td className="px-6 py-4">
+                                            <td className="px-3 sm:px-6 py-3 sm:py-4 hidden sm:table-cell">
                                                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                                                     {farm.cropType || 'Chưa rõ'}
                                                 </span>
                                             </td>
-                                            <td className="px-6 py-4 text-right font-medium text-gray-600">
+                                            <td className="px-3 sm:px-6 py-3 sm:py-4 text-right font-medium text-gray-600 text-sm">
                                                 {formatNumber(farm.area)} m²
                                             </td>
-                                            <td className="px-6 py-4 text-right font-medium text-gray-900">
+                                            <td className="px-3 sm:px-6 py-3 sm:py-4 text-right font-medium text-gray-900 text-sm">
                                                 {formatNumber(farm.cumulativeYieldKg || 0)} kg
                                             </td>
-                                            <td className="px-6 py-4 text-right">
-                                                <span className={`font-black ${farm.efficiency > 0 ? 'text-green-600' : 'text-gray-400'}`}>
+                                            <td className="px-3 sm:px-6 py-3 sm:py-4 text-right">
+                                                <span className={`font-black text-sm ${farm.efficiency > 0 ? 'text-green-600' : 'text-gray-400'}`}>
                                                     {farm.efficiency.toFixed(3)}
                                                 </span>
                                             </td>

@@ -113,7 +113,7 @@ const ProductDetailPage = () => {
 
       {/* Product Detail */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-12">
           {/* Images */}
           <div className="space-y-4">
             {/* Main Image */}
@@ -165,15 +165,15 @@ const ProductDetailPage = () => {
                   {product.viewCount || 0} lượt xem
                 </span>
               </div>
-              <h1 className="text-3xl font-bold text-gray-900">{product.productName}</h1>
+              <h1 className="text-xl sm:text-3xl font-bold text-gray-900 leading-tight">{product.productName}</h1>
             </div>
 
-            {/* Price */}
-            <div className="flex items-baseline space-x-2">
-              <span className="text-4xl font-bold text-primary-600">
+            {/* Giá */}
+            <div className="flex items-baseline flex-wrap gap-1">
+              <span className="text-3xl sm:text-4xl font-bold text-primary-600">
                 {product.price?.toLocaleString()}đ
               </span>
-              <span className="text-xl text-gray-500">/{product.unit || 'kg'}</span>
+              <span className="text-lg sm:text-xl text-gray-500">/{product.unit || 'kg'}</span>
             </div>
 
             {/* Certification */}
@@ -257,8 +257,8 @@ const ProductDetailPage = () => {
               </div>
             )}
 
-            {/* Action Buttons */}
-            <div className="flex space-x-4">
+            {/* Nút hành động */}
+            <div className="flex flex-wrap gap-2">
               <Button
                 href={`https://zalo.me/${product.farmerId?.phone?.replace(/^0/, '84') || ''}`}
                 target="_blank"
@@ -266,7 +266,7 @@ const ProductDetailPage = () => {
                 onClick={() => handleContactIntent('zalo')}
                 variant="primary"
                 icon={FiMessageCircle}
-                className="flex-[2] !bg-blue-500 hover:!bg-blue-600 border-none"
+                className="flex-1 min-w-[100px] !bg-blue-500 hover:!bg-blue-600 border-none"
               >
                 Chat Zalo
               </Button>
@@ -275,14 +275,14 @@ const ProductDetailPage = () => {
                 onClick={() => handleContactIntent('phone')}
                 variant="primary"
                 icon={FiPhone}
-                className="flex-[2] !bg-green-500 hover:!bg-green-600 border-none"
+                className="flex-1 min-w-[100px] !bg-green-500 hover:!bg-green-600 border-none"
               >
                 Gọi điện
               </Button>
-              <button className="p-3 bg-gray-100 text-gray-600 rounded-xl hover:bg-gray-200 transition-colors">
+              <button className="p-3 bg-gray-100 text-gray-600 rounded-xl hover:bg-gray-200 transition-colors flex-shrink-0">
                 <FiHeart size={20} />
               </button>
-              <button className="p-3 bg-gray-100 text-gray-600 rounded-xl hover:bg-gray-200 transition-colors">
+              <button className="p-3 bg-gray-100 text-gray-600 rounded-xl hover:bg-gray-200 transition-colors flex-shrink-0">
                 <FiShare2 size={20} />
               </button>
             </div>
@@ -291,8 +291,8 @@ const ProductDetailPage = () => {
 
         {/* Thông tin vùng trồng — hỗ trợ nhiều thửa đất */}
         {product.farmIds && product.farmIds.length > 0 && (
-          <div className="mt-12">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Thông tin vùng trồng</h2>
+          <div className="mt-8 sm:mt-12">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6">Thông tin vùng trồng</h2>
             <div className={`grid gap-4 ${product.farmIds.length > 1 ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1'}`}>
               {product.farmIds.map((farm, idx) => (
                 <div key={farm._id || idx} className="card">
